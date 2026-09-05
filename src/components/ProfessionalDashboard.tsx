@@ -872,9 +872,20 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
                         <h4 className="text-base font-semibold text-gray-900">{order.project_title}</h4>
                         <p className="text-sm text-gray-500 mt-1">{order.project_description}</p>
                       </div>
-                      <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg whitespace-nowrap">
-                        {order.budget_range}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg whitespace-nowrap">
+                          {order.budget_range}
+                        </span>
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                          order.status === 'funded' || order.status === 'work_in_progress' ? 'bg-indigo-100 text-indigo-700' :
+                          order.status === 'released' ? 'bg-emerald-100 text-emerald-700' :
+                          order.status === 'work_submitted' ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {order.status ? order.status.replace(/_/g, ' ') : 'Pending'}
+                        </span>
+                      </div>
+
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 mt-2">
                       <span className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5" /> {order.client_name}</span>

@@ -87,7 +87,7 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
       created_at: new Date().toISOString()
     };
     
-    // First insert into service_orders
+    // First try to insert into client_requests or service_orders (may fail if tables are missing, which is fine)
     let res = await supabase.from('client_requests').insert([payload]).select();
     if (res.error) {
        res = await supabase.from('service_orders').insert([payload]).select();
@@ -109,7 +109,7 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
       }
       
       const escrowPayload = {
-        service_order_id: res.data?.[0]?.id || null,
+        service_order_id: res.data?.[0]?.id || null, // Will be null if both failed, which is acceptable
         client_id: clientId,
         client_name: orderData.client_name,
         professional_id: orderData.professional_id,
@@ -120,16 +120,24 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
         status: 'pending_payment'
       };
       
-      const { error: escrowError } = await supabase.from('escrow_projects').insert([escrowPayload]);
-      if (escrowError) console.error("Failed to create escrow project:", escrowError);
+      const { data: escrowData, error: escrowError } = await supabase.from('escrow_projects').insert([escrowPayload]).select();
+      if (escrowError) {
+         console.error("Failed to create escrow project:", escrowError);
+      } else {
+         // Return the escrow data as success if the original insert failed
+         if (res.error) {
+            res = { data: escrowData, error: null, count: null, status: 201, statusText: 'Created' };
+         }
+      }
     }
 
-    return { data: res.data, error: null };
+    return { data: res.data, error: res.error };
   } catch (err: any) {
     console.error('Supabase submitOrder error:', err);
     return { data: null, error: err };
   }
 }
+
 
 
 
@@ -1592,28 +1600,62 @@ export async function clientApproveEscrowBackend(projectId: string): Promise<{er
 
 export async function fetchProfessionalOrders(profId: string): Promise<any[]> {
   try {
-    let { data, error } = await supabase.from('client_requests').select('*').eq('professional_id', profId).order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) {
-       const fallback = await supabase.from('service_orders').select('*').eq('professional_id', profId).order('created_at', { ascending: false });
-       return fallback.data || [];
+    const { data, error } = await supabase.from('escrow_projects')
+      .select('*')
+      .eq('professional_id', profId)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error("fetchProfessionalOrders error:", error);
+      return [];
     }
-    return data || [];
+    
+    // Map escrow projects to the expected order format
+    return (data || []).map(p => ({
+      id: p.id,
+      project_title: p.title,
+      project_description: 'Service request via Escrow Payment System',
+      budget_range: '₦' + Number(p.amount).toLocaleString(),
+      client_name: p.client_name || 'Client',
+      client_email: 'Contact via chat',
+      professional_name: p.professional_name,
+      service_category: 'Professional Service',
+      status: p.status,
+      created_at: p.created_at
+    }));
   } catch (err) {
+    console.error("fetchProfessionalOrders catch:", err);
     return [];
   }
 }
 
-export async function fetchClientOrders(email: string): Promise<any[]> {
+export async function fetchClientOrders(clientId: string): Promise<any[]> {
   try {
-    let { data, error } = await supabase.from('client_requests').select('*').eq('client_email', email).order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) {
-       const fallback = await supabase.from('service_orders').select('*').eq('client_email', email).order('created_at', { ascending: false });
-       return fallback.data || [];
+    const { data, error } = await supabase.from('escrow_projects')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error("fetchClientOrders error:", error);
+      return [];
     }
-    return data || [];
+    
+    // Map escrow projects to the expected order format
+    return (data || []).map(p => ({
+      id: p.id,
+      project_title: p.title,
+      project_description: 'Service request via Escrow Payment System',
+      budget_range: '₦' + Number(p.amount).toLocaleString(),
+      client_name: p.client_name || 'Client',
+      client_email: 'Contact via chat',
+      professional_name: p.professional_name,
+      service_category: 'Professional Service',
+      status: p.status,
+      created_at: p.created_at
+    }));
   } catch (err) {
+    console.error("fetchClientOrders catch:", err);
     return [];
   }
 }
-
-

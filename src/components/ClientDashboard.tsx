@@ -107,9 +107,8 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
     const u = userObj || currentUser;
     if (!u) return;
     try {
-      const email = u.email;
-      if (email) {
-        const userOrders = await fetchClientOrders(email);
+      if (u.id) {
+        const userOrders = await fetchClientOrders(u.id);
         setOrders(userOrders);
       }
     } catch (err) {}
@@ -443,13 +442,15 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
                         </span>
                       </div>
                     </div>
-                    <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                      order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                      order.status === 'in_progress' ? 'bg-indigo-100 text-indigo-700' :
-                      'bg-amber-100 text-amber-700'
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      order.status === 'funded' || order.status === 'work_in_progress' ? 'bg-indigo-100 text-indigo-700' :
+                      order.status === 'released' ? 'bg-emerald-100 text-emerald-700' :
+                      order.status === 'work_submitted' ? 'bg-amber-100 text-amber-700' :
+                      'bg-gray-100 text-gray-600'
                     }`}>
-                      {order.status || 'Pending'}
+                      {order.status ? order.status.replace(/_/g, ' ') : 'Pending'}
                     </span>
+
                   </div>
                 </div>
               ))}

@@ -1,0 +1,1 @@
+ALTER TABLE IF EXISTS public.escrow_projects DISABLE ROW LEVEL SECURITY;

@@ -1,5 +1,30 @@
 #!/bin/bash
 cat << 'INNER_EOF' > replacement.txt
+export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ data: any; error: any }> {
+  try {
+    const payload = {
+      client_name: orderData.client_name,
+      client_email: orderData.client_email,
+      client_phone: orderData.client_phone,
+      service_category: orderData.service_category,
+      project_title: orderData.project_title,
+      project_description: orderData.project_description,
+      budget_range: orderData.budget_range || 'Flexible',
+      timeline: orderData.timeline || 'Flexible',
+      professional_id: orderData.professional_id || null,
+      professional_name: orderData.professional_name || null,
+      attachment_url: orderData.attachment_url || null,
+      cloud_link: orderData.cloud_link || null,
+      status: orderData.status || 'pending',
+      created_at: new Date().toISOString()
+    };
+    
+    // First try to insert into client_requests or service_orders (may fail if tables are missing, which is fine)
+    let res = await supabase.from('client_requests').insert([payload]).select();
+    if (res.error) {
+       res = await supabase.from('service_orders').insert([payload]).select();
+    }
+    
     // Auto-create Escrow Project if a professional is assigned
     if (orderData.professional_id) {
       let clientId = 'client-guest';
@@ -16,7 +41,7 @@ cat << 'INNER_EOF' > replacement.txt
       }
       
       const escrowPayload = {
-        service_order_id: res.data?.[0]?.id || null,
+        service_order_id: res.data?.[0]?.id || null, // Will be null if both failed, which is acceptable
         client_id: clientId,
         client_name: orderData.client_name,
         professional_id: orderData.professional_id,
@@ -27,9 +52,23 @@ cat << 'INNER_EOF' > replacement.txt
         status: 'pending_payment'
       };
       
-      const { error: escrowError } = await supabase.from('escrow_projects').insert([escrowPayload]);
-      if (escrowError) console.error("Failed to create escrow project:", escrowError);
+      const { data: escrowData, error: escrowError } = await supabase.from('escrow_projects').insert([escrowPayload]).select();
+      if (escrowError) {
+         console.error("Failed to create escrow project:", escrowError);
+      } else {
+         // Return the escrow data as success if the original insert failed
+         if (res.error) {
+            res = { data: escrowData, error: null, count: null, status: 201, statusText: 'Created' };
+         }
+      }
     }
+
+    return { data: res.data, error: res.error };
+  } catch (err: any) {
+    console.error('Supabase submitOrder error:', err);
+    return { data: null, error: err };
+  }
+}
 INNER_EOF
 
-perl -i -pe 'BEGIN{undef $/;} s/    \/\/ Auto-create Escrow Project if a professional is assigned.*?    \}/`cat replacement.txt`/esg' src/lib/supabase.ts
+perl -i -pe 'BEGIN{undef $/;} s/export async function submitOrderToSupabase.*?\}\n\}/`cat replacement.txt`/esg' src/lib/supabase.ts
