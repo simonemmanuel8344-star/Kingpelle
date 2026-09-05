@@ -1,3 +1,5 @@
+#!/bin/bash
+cat << 'INNER_EOF' > replacement.txt
       {/* TAB 1: SERVICE REQUESTS */}
       {activeTab === 'orders' && (
         <div className="space-y-6 animate-in fade-in duration-200">
@@ -59,3 +61,6 @@
       )}
 
       {/* TAB 1.5: MY APPLICATIONS */}
+INNER_EOF
+
+perl -i -pe 'BEGIN{undef $/;} s/      \{\/\* TAB 1: MY APPLICATIONS \*\/\}/`cat replacement.txt`/esg' src/components/ClientDashboard.tsx

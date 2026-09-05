@@ -95,9 +95,11 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
     
     // Auto-create Escrow Project if a professional is assigned
     if (orderData.professional_id) {
-      // Try to get local user if available
       let clientId = 'client-guest';
-      if (typeof window !== 'undefined') {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user) {
+        clientId = authData.user.id;
+      } else if (typeof window !== 'undefined') {
         const localUser = localStorage.getItem('idea_hub_local_user');
         if (localUser) {
           try {
@@ -118,7 +120,8 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
         status: 'pending_payment'
       };
       
-      await supabase.from('escrow_projects').insert([escrowPayload]);
+      const { error: escrowError } = await supabase.from('escrow_projects').insert([escrowPayload]);
+      if (escrowError) console.error("Failed to create escrow project:", escrowError);
     }
 
     return { data: res.data, error: null };
@@ -127,6 +130,7 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
     return { data: null, error: err };
   }
 }
+
 
 
 export async function submitContactToSupabase(msg: ContactMessage): Promise<{ data: any; error: any }> {
@@ -1585,3 +1589,31 @@ export async function clientApproveEscrowBackend(projectId: string): Promise<{er
   });
   return { error };
 }
+
+export async function fetchProfessionalOrders(profId: string): Promise<any[]> {
+  try {
+    let { data, error } = await supabase.from('client_requests').select('*').eq('professional_id', profId).order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) {
+       const fallback = await supabase.from('service_orders').select('*').eq('professional_id', profId).order('created_at', { ascending: false });
+       return fallback.data || [];
+    }
+    return data || [];
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function fetchClientOrders(email: string): Promise<any[]> {
+  try {
+    let { data, error } = await supabase.from('client_requests').select('*').eq('client_email', email).order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) {
+       const fallback = await supabase.from('service_orders').select('*').eq('client_email', email).order('created_at', { ascending: false });
+       return fallback.data || [];
+    }
+    return data || [];
+  } catch (err) {
+    return [];
+  }
+}
+
+

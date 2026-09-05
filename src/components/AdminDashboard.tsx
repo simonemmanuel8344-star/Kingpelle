@@ -5,10 +5,11 @@ import {
   Users, User as UserIcon, Briefcase, FileCheck, MessageSquare, Settings, LogOut, 
   Plus, Edit, Trash2, LayoutDashboard, Shield, Lock, Send, X, Image as ImageIcon,
   Eye, EyeOff, ArrowLeft, Mail, FileText, Download, ExternalLink, Phone, Calendar,
-  CheckCircle2, Clock, AlertCircle, Filter, Search, Copy, Save, RefreshCw, Check
+  CheckCircle2, ShieldCheck, Clock, AlertCircle, Filter, Search, Copy, Save, RefreshCw, Check
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Professional, PortfolioItem, JobPosting as Job, JobApplication, ChatSession, ChatMessage } from '../types';
+import { AdminEscrowDashboard } from './escrow/AdminEscrowDashboard';
 
 interface AdminDashboardProps {
   clients?: any[];
@@ -1471,7 +1472,14 @@ export function AdminDashboard(props: AdminDashboardProps) {
             </motion.div>
           )}
 
+          {activeTab === 'escrow' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <AdminEscrowDashboard />
+            </motion.div>
+          )}
+
           {activeTab === 'chats' && (
+
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex h-[calc(100vh-8rem)] gap-6 max-w-7xl mx-auto">
               <div className="w-1/3 bg-white/60 backdrop-blur-xl border border-gray-200/60 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
                 <div className="p-6 border-b border-gray-200/60 bg-gray-50">

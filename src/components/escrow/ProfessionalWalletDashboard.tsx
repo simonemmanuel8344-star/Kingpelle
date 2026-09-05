@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, EscrowProject } from '../../types';
 import { fetchWallet, fetchEscrowProjects, updateEscrowStatus } from '../../lib/supabase';
-import { Wallet as WalletIcon, ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Wallet as WalletIcon, ShieldCheck, CheckCircle2, AlertCircle, Loader2, Clock } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
 export function ProfessionalWalletDashboard({ userId }: { userId: string }) {
@@ -99,7 +99,14 @@ export function ProfessionalWalletDashboard({ userId }: { userId: string }) {
               </div>
               
               <div className="flex-shrink-0">
+                {project.status === 'pending_payment' && (
+                  <div className="text-sm font-medium text-gray-500 bg-gray-100 px-4 py-2 rounded-xl flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Awaiting Client Payment
+                  </div>
+                )}
+                
                 {(project.status === 'funded' || project.status === 'work_in_progress') && (
+
                   <button 
                     onClick={() => handleSubmitWork(project.id)}
                     disabled={submitting === project.id}
