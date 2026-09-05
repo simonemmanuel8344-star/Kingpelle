@@ -1,12 +1,4 @@
-      const escrowPayload = {
-        service_order_id: res.data?.[0]?.id || null, 
-        client_id: clientId,
-        client_email: orderData.client_email,
-        client_name: orderData.client_name,
-        professional_id: orderData.professional_id,
-        professional_name: orderData.professional_name || 'Professional',
-        title: orderData.project_title,
-        amount: parseInt(orderData.budget_range?.replace(/[^0-9]/g, '') || '100000'), 
-        commission_rate: 0.10,
-        status: 'pending_payment'
-      };
+  const userDisplayName = currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0] || 'User';
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">

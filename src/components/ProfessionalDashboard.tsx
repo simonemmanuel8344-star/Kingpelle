@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { supabase, uploadFileToSupabase, fetchChatSessions, saveRegisteredProfessional, fetchUserJobApplications, fetchProfessionalOrders } from '../lib/supabase';
+import { supabase, uploadFileToSupabase, fetchChatSessions, saveRegisteredProfessional, fetchUserJobApplications, fetchProfessionalOrders, updateEscrowStatus } from '../lib/supabase';
+
 import { ChatSession, Professional, Rating, PortfolioItem, JobApplication } from '../types';
 import { MessageSquare, Star, ArrowRight, Award, Phone, Mail, Edit3, CheckCircle, Clock, Plus, Trash2, ExternalLink, Image as ImageIcon, MapPin, Eye, KeyRound, Lock, Shield, Briefcase, CheckCircle2, Clock3, Sparkles, FileText , User as UserIcon } from 'lucide-react';
 import { Chat } from './Chat';
@@ -130,6 +131,12 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
     window.addEventListener('idea_hub_chat_sessions_updated', handleChatUpdate);
     window.addEventListener('idea_hub_chat_message_sent', handleChatUpdate);
 
+    const orderSub = supabase.channel("pro-orders")
+      .on("postgres_changes", { event: "*", schema: "public", table: "escrow_projects" }, () => {
+        loadOrders(currentUser);
+      })
+      .subscribe();
+
     // 3. Fetch ratings for this professional
     supabase.from('ratings').select('*').eq('profId', currentUser.id).then(({ data, error }) => {
       if (data) setRatings(data);
@@ -160,10 +167,10 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
 
     window.addEventListener('idea_hub_job_application_updated', handleAppUpdated);
     window.addEventListener('idea_hub_job_application_submitted', handleAppSubmitted);
-
     return () => {
       window.removeEventListener('idea_hub_chat_sessions_updated', handleChatUpdate);
       window.removeEventListener('idea_hub_chat_message_sent', handleChatUpdate);
+      supabase.removeChannel(orderSub);
       window.removeEventListener('idea_hub_job_application_updated', handleAppUpdated);
       window.removeEventListener('idea_hub_job_application_submitted', handleAppSubmitted);
     };
@@ -324,7 +331,38 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
     );
   }
 
+  const handleAcceptOrder = async (orderId: string) => {
+    try {
+      await updateEscrowStatus(orderId, 'accepted_awaiting_payment');
+      showToast('Order accepted. Awaiting client payment.', 'success');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'accepted_awaiting_payment' } : o));
+    } catch (err) {
+      showToast('Failed to accept order', 'error');
+    }
+  };
+
+  const handleDeclineOrder = async (orderId: string) => {
+    try {
+      await updateEscrowStatus(orderId, 'declined');
+      showToast('Order declined.', 'success');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'declined' } : o));
+    } catch (err) {
+      showToast('Failed to decline order', 'error');
+    }
+  };
+
+  const handleMarkCompleted = async (orderId: string) => {
+    try {
+      await updateEscrowStatus(orderId, 'completed_awaiting_confirmation');
+      showToast('Project marked as completed. Awaiting client confirmation.', 'success');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'completed_awaiting_confirmation' } : o));
+    } catch (err) {
+      showToast('Failed to mark as completed', 'error');
+    }
+  };
+
   return (
+
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-indigo-600/15 via-white/5 to-transparent border border-indigo-600/20 rounded-3xl p-6 sm:p-8 mb-10 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -887,6 +925,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
+
                               <div className="bg-gray-900 text-white p-3 rounded-lg shadow-xl text-xs max-w-xs">
                                 <p className="font-bold text-sm mb-1">{data.fullTitle}</p>
                                 <p className="text-gray-300">Status: <span className="text-indigo-300 capitalize">{data.status}</span></p>
@@ -986,7 +1025,8 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
                   const isContacted = status === 'contacted';
                   const isRejected = status === 'rejected';
 
-                  return (
+                    return (
+
                     <div key={app.id} className="p-5 hover:bg-white/60 transition-all space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>

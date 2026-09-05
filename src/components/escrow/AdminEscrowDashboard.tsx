@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EscrowProject, Wallet } from '../../types';
-import { fetchEscrowProjects, releaseEscrowBackend, fetchWallet } from '../../lib/supabase';
+import { fetchEscrowProjects, releaseEscrowBackend, fetchWallet, supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 import { ShieldCheck, Loader2, AlertCircle, RefreshCw, DollarSign, Search, CheckCircle2 } from 'lucide-react';
 
@@ -20,6 +20,14 @@ export function AdminEscrowDashboard() {
 
   useEffect(() => {
     loadData();
+    const orderSub = supabase.channel("admin-orders")
+      .on("postgres_changes", { event: "*", schema: "public", table: "escrow_projects" }, () => {
+        loadData();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(orderSub);
+    };
   }, []);
 
   const handleRelease = async (projectId: string) => {
@@ -39,6 +47,14 @@ export function AdminEscrowDashboard() {
       } else {
         showToast('Payment released successfully to the professional!', 'success');
         loadData();
+    const orderSub = supabase.channel("admin-orders")
+      .on("postgres_changes", { event: "*", schema: "public", table: "escrow_projects" }, () => {
+        loadData();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(orderSub);
+    };
       }
     } catch (err: any) {
       showToast(err.message || 'Failed to release payment', 'error');
@@ -49,10 +65,21 @@ export function AdminEscrowDashboard() {
 
   const filteredProjects = projects.filter(p => {
     if (filter === 'all') return true;
-    if (filter === 'pending_release') return p.status === 'awaiting_admin_release';
-    if (filter === 'in_escrow') return p.status === 'funded' || p.status === 'work_in_progress' || p.status === 'work_submitted' || p.status === 'client_review';
+    if (filter === 'pending_release') return p.status === 'completed_awaiting_confirmation';
+    if (filter === 'in_escrow') return ['paid_in_escrow', 'in_progress', 'funded'].includes(p.status);
+    if (filter === 'released') return ['completed', 'escrow_released', 'released'].includes(p.status);
     return p.status === filter;
   });
+
+
+  const stats = {
+    directServiceRequests: projects.filter(p => p.status === 'pending_acceptance').length,
+    requestedServices: projects.length,
+    directOrders: projects.length, // Can be the same as requested services or based on another metric if available
+    activeEscrow: projects.filter(p => ['paid_in_escrow', 'in_progress', 'funded', 'completed_awaiting_confirmation'].includes(p.status)).length,
+    completedProjects: projects.filter(p => ['completed', 'released', 'escrow_released'].includes(p.status)).length,
+    releasedEscrowAmount: projects.filter(p => ['completed', 'released', 'escrow_released'].includes(p.status)).reduce((sum, p) => sum + Number(p.amount || 0), 0)
+  };
 
   return (
     <div className="space-y-6">
@@ -60,9 +87,9 @@ export function AdminEscrowDashboard() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-indigo-600" />
-            Escrow Management
+            Applications / Orders / Escrow Management
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Securely manage client funds and professional payouts.</p>
+          <p className="text-gray-500 text-sm mt-1">Total overview of the platform's order flow and finances.</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -72,9 +99,10 @@ export function AdminEscrowDashboard() {
             className="px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
           >
             <option value="all">All Transactions</option>
-            <option value="in_escrow">In Escrow</option>
+            <option value="in_escrow">Active Escrow</option>
+            <option value="pending_acceptance">Pending Acceptance</option>
             <option value="pending_release">Awaiting Release</option>
-            <option value="released">Released</option>
+            <option value="released">Released / Completed</option>
             <option value="disputed">Disputed</option>
           </select>
           <button onClick={loadData} className="p-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 text-gray-600">
@@ -82,6 +110,35 @@ export function AdminEscrowDashboard() {
           </button>
         </div>
       </div>
+
+      {/* DASHBOARD STATS */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col">
+          <span className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Direct Service Requests</span>
+          <span className="text-3xl font-black text-gray-900">{stats.directServiceRequests}</span>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col">
+          <span className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Requested Services</span>
+          <span className="text-3xl font-black text-gray-900">{stats.requestedServices}</span>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col">
+          <span className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Direct Orders</span>
+          <span className="text-3xl font-black text-gray-900">{stats.directOrders}</span>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-indigo-100 p-5 flex flex-col bg-indigo-50/30">
+          <span className="text-xs font-bold text-indigo-600 mb-1 uppercase tracking-wider">Active Escrow Projects</span>
+          <span className="text-3xl font-black text-indigo-700">{stats.activeEscrow}</span>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-5 flex flex-col bg-emerald-50/30">
+          <span className="text-xs font-bold text-emerald-600 mb-1 uppercase tracking-wider">Completed Projects</span>
+          <span className="text-3xl font-black text-emerald-700">{stats.completedProjects}</span>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-emerald-100 p-5 flex flex-col bg-emerald-50/50">
+          <span className="text-xs font-bold text-emerald-700 mb-1 uppercase tracking-wider">Released Escrow Payments</span>
+          <span className="text-3xl font-black text-emerald-800">₦{stats.releasedEscrowAmount.toLocaleString()}</span>
+        </div>
+      </div>
+
 
       <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden">
         {loading ? (

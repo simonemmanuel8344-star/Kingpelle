@@ -120,7 +120,8 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
         title: orderData.project_title,
         amount: parseInt(orderData.budget_range?.replace(/[^0-9]/g, '') || '100000'), 
         commission_rate: 0.10,
-        status: 'pending_payment'
+        status: 'pending_acceptance'
+
       };
 
       

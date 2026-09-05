@@ -3,7 +3,7 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { 
   supabase, 
   fetchChatSessions, 
-  fetchUserJobApplications, fetchUserNotifications, fetchClientOrders, markNotificationAsRead, markAllNotificationsAsRead 
+  fetchUserJobApplications, fetchUserNotifications, fetchClientOrders, markNotificationAsRead, markAllNotificationsAsRead, updateEscrowStatus 
 } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { 
@@ -162,12 +162,18 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
     window.addEventListener('idea_hub_chat_message_sent', handleChatUpdate);
     window.addEventListener('idea_hub_notifications_updated', handleNotificationsUpdate);
 
+    const orderSub = supabase.channel("client-orders")
+      .on("postgres_changes", { event: "*", schema: "public", table: "escrow_projects" }, () => {
+        loadOrders(currentUser);
+      })
+      .subscribe();
     return () => {
       window.removeEventListener('idea_hub_job_application_updated', handleAppUpdated);
       window.removeEventListener('idea_hub_job_application_submitted', handleAppSubmitted);
       window.removeEventListener('idea_hub_chat_sessions_updated', handleChatUpdate);
       window.removeEventListener('idea_hub_chat_message_sent', handleChatUpdate);
       window.removeEventListener('idea_hub_notifications_updated', handleNotificationsUpdate);
+      supabase.removeChannel(orderSub);
     };
   }, [currentUser]);
 
@@ -253,19 +259,49 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8 animate-in fade-in zoom-in-95 duration-200">
         <Chat 
-          chatId={activeChat.id}
+          chatId={activeChat.id} 
           professionalId={activeChat.professionalId}
-          professionalName={activeChat.professionalName}
-          professionalPicture={activeChat.professionalPicture}
-          onBack={() => setActiveChat(null)}
+          professionalName={activeChat.professionalName || 'Professional'} 
+          professionalPicture=""
+          onBack={() => setActiveChat(null)} 
         />
       </div>
     );
   }
 
-  const userDisplayName = currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0] || 'User';
+  const handlePayNow = async (orderId: string) => {
+    try {
+      await updateEscrowStatus(orderId, 'paid_in_escrow');
+      showToast('Payment successful. Funds held in escrow.', 'success');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'paid_in_escrow' } : o));
+    } catch (err) {
+      showToast('Payment failed', 'error');
+    }
+  };
 
+  const handleConfirmCompletion = async (orderId: string) => {
+    try {
+      await updateEscrowStatus(orderId, 'completed');
+      showToast('Completion confirmed. Escrow released.', 'success');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'completed' } : o));
+    } catch (err) {
+      showToast('Failed to confirm completion', 'error');
+    }
+  };
+
+  const handleRaiseDispute = async (orderId: string) => {
+    try {
+      await updateEscrowStatus(orderId, 'disputed');
+      showToast('Dispute raised. Admin will review.', 'success');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'disputed' } : o));
+    } catch (err) {
+      showToast('Failed to raise dispute', 'error');
+    }
+  };
+
+  const userDisplayName = currentUser?.user_metadata?.full_name || currentUser?.email?.split("@")[0] || "User";
   return (
+
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 animate-in fade-in duration-300">
       {/* Profile & Navigation Banner */}
       <div className="bg-white border border-gray-200/80 rounded-3xl p-6 sm:p-8 shadow-sm mb-8">
@@ -405,66 +441,25 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2.5">
                 <FileText className="w-6 h-6 text-indigo-600" />
-                Requested Services & Direct Orders
+                Service Requests & Direct Orders
               </h2>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                Track the services you requested directly from professionals on the platform.
+                Manage all your professional service requests.
               </p>
             </div>
           </div>
 
-          {orders.length > 0 && (
-            <div className="bg-white border border-gray-200/80 rounded-2xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Project Completion Progress</h3>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={orders.map(o => {
-                      let progress = 10;
-                      const s = o.status || '';
-                      if (s.includes('released') || s.includes('completed')) progress = 100;
-                      else if (s.includes('submitted') || s.includes('awaiting_admin_release')) progress = 90;
-                      else if (s.includes('funded') || s.includes('progress')) progress = 50;
-                      
-                      return {
-                        name: o.project_title.length > 15 ? o.project_title.substring(0, 15) + '...' : o.project_title,
-                        fullTitle: o.project_title,
-                        progress,
-                        status: s.replace(/_/g, ' ') || 'Pending'
-                      };
-                    })}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                    <XAxis dataKey="name" tick={{fontSize: 10, fill: '#6B7280'}} axisLine={false} tickLine={false} angle={-25} textAnchor="end" />
-                    <YAxis tick={{fontSize: 10, fill: '#6B7280'}} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(val) => `${val}%`} />
-                    <RechartsTooltip 
-                      cursor={{fill: '#F3F4F6'}}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-gray-900 text-white p-3 rounded-lg shadow-xl text-xs max-w-xs">
-                              <p className="font-bold text-sm mb-1">{data.fullTitle}</p>
-                              <p className="text-gray-300">Status: <span className="text-indigo-300 capitalize">{data.status}</span></p>
-                              <p className="text-gray-300">Completion: <span className="font-bold text-white">{data.progress}%</span></p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="progress" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                      {orders.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill="#4F46E5" />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+          {/* DASHBOARD STATS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+              <span className="text-sm font-semibold text-gray-500 mb-2">Requested Services & Direct Orders</span>
+              <span className="text-4xl font-bold text-gray-900">{orders.length}</span>
             </div>
-          )}
-
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+              <span className="text-sm font-semibold text-gray-500 mb-2">Active Escrow Projects</span>
+              <span className="text-4xl font-bold text-indigo-600">{orders.filter(o => ['paid_in_escrow', 'in_progress', 'completed_awaiting_confirmation'].includes(o.status)).length}</span>
+            </div>
+          </div>
 
           {orders.length === 0 ? (
             <div className="bg-white border border-dashed border-gray-300 rounded-3xl p-10 sm:p-14 text-center">
@@ -481,7 +476,7 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
               {orders.map((order) => (
                 <div key={order.id} className="bg-white border border-gray-200/80 rounded-2xl p-5 hover:border-indigo-300 transition-colors shadow-sm">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <div>
+                    <div className="w-full">
                       <h3 className="font-bold text-gray-900 text-lg">{order.project_title}</h3>
                       <p className="text-sm text-gray-600 mt-1">{order.project_description}</p>
                       <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">
@@ -496,15 +491,66 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
                         </span>
                       </div>
                     </div>
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      order.status === 'funded' || order.status === 'work_in_progress' ? 'bg-indigo-100 text-indigo-700' :
-                      order.status === 'released' ? 'bg-emerald-100 text-emerald-700' :
-                      order.status === 'work_submitted' ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {order.status ? order.status.replace(/_/g, ' ') : 'Pending'}
-                    </span>
-
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-sm font-bold rounded-lg whitespace-nowrap">
+                        {order.budget_range}
+                      </span>
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                        ['in_progress', 'paid_in_escrow', 'funded', 'work_in_progress'].includes(order.status) ? 'bg-indigo-100 text-indigo-700' :
+                        ['completed', 'escrow_released', 'released'].includes(order.status) ? 'bg-emerald-100 text-emerald-700' :
+                        ['completed_awaiting_confirmation', 'work_submitted'].includes(order.status) ? 'bg-amber-100 text-amber-700' :
+                        order.status === 'declined' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {order.status ? order.status.replace(/_/g, ' ') : 'Pending'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Actions and Status Helpers */}
+                  <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                    {order.status === 'pending_acceptance' && (
+                      <p className="text-xs font-medium text-amber-600 w-full text-right">
+                        Awaiting Professional Acceptance...
+                      </p>
+                    )}
+                    {order.status === 'accepted_awaiting_payment' && (
+                      <div className="flex items-center gap-3 w-full justify-between">
+                        <p className="text-xs font-medium text-indigo-600 flex-1">
+                          Professional accepted. Payment will be held securely in escrow until completion.
+                        </p>
+                        <button onClick={() => handlePayNow(order.id)} className="px-5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl text-sm transition-colors shadow-sm">
+                          Pay Now
+                        </button>
+                      </div>
+                    )}
+                    {['paid_in_escrow', 'in_progress', 'funded'].includes(order.status) && (
+                      <div className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold w-full justify-end">
+                        <Shield className="w-4 h-4" />
+                        Payment Secured in Escrow
+                      </div>
+                    )}
+                    {order.status === 'completed_awaiting_confirmation' && (
+                      <div className="flex items-center gap-2 w-full justify-between">
+                        <p className="text-xs font-medium text-amber-600 flex-1">
+                          Professional has marked this project as completed.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleRaiseDispute(order.id)} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded-xl text-xs transition-colors shadow-sm">
+                            Raise Dispute
+                          </button>
+                          <button onClick={() => handleConfirmCompletion(order.id)} className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 font-bold rounded-xl text-xs transition-colors shadow-sm">
+                            Confirm Completion
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {['completed', 'escrow_released'].includes(order.status) && (
+                      <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold w-full justify-end">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Escrow Released
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -512,6 +558,7 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
           )}
         </div>
       )}
+
 
       {/* TAB 1.5: MY APPLICATIONS */}
 
@@ -570,6 +617,7 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
                 const isRejected = (app.status || 'pending') === 'rejected';
 
                 return (
+
                   <div 
                     key={app.id} 
                     className="bg-white border border-gray-200/90 hover:border-indigo-300 rounded-3xl p-6 sm:p-7 shadow-xs hover:shadow-md transition-all"
@@ -975,6 +1023,7 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
               {(() => {
                 const b = getStatusBadge(selectedAppModal.status);
                 return (
+
                   <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 ${b.bg}`}>
                     <div>
                       <span className="text-xs font-bold block opacity-75">Current Hiring Stage</span>
