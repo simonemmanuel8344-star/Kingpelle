@@ -1,8 +1,12 @@
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      order.status === 'funded' || order.status === 'work_in_progress' ? 'bg-indigo-100 text-indigo-700' :
-                      order.status === 'released' ? 'bg-emerald-100 text-emerald-700' :
-                      order.status === 'work_submitted' ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {order.status ? order.status.replace(/_/g, ' ') : 'Pending'}
-                    </span>
+      const escrowPayload = {
+        service_order_id: res.data?.[0]?.id || null, 
+        client_id: clientId,
+        client_email: orderData.client_email,
+        client_name: orderData.client_name,
+        professional_id: orderData.professional_id,
+        professional_name: orderData.professional_name || 'Professional',
+        title: orderData.project_title,
+        amount: parseInt(orderData.budget_range?.replace(/[^0-9]/g, '') || '100000'), 
+        commission_rate: 0.10,
+        status: 'pending_payment'
+      };

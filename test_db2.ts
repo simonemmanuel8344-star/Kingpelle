@@ -7,5 +7,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 async function test() {
   const { data: cr } = await supabase.from('client_requests').select('*');
   console.log("CLIENT REQUESTS", cr);
+  const { data: esc } = await supabase.from('escrow_projects').select('*');
+  console.log("ESCROW", esc);
 }
 test();

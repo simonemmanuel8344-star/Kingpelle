@@ -96,40 +96,45 @@ export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ 
     // Auto-create Escrow Project if a professional is assigned
     if (orderData.professional_id) {
       let clientId = 'client-guest';
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData?.user) {
-        clientId = authData.user.id;
-      } else if (typeof window !== 'undefined') {
-        const localUser = localStorage.getItem('idea_hub_local_user');
-        if (localUser) {
-          try {
-             clientId = JSON.parse(localUser).id || 'client-guest';
-          } catch(e) {}
+      
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user) {
+          clientId = authData.user.id;
+        } else if (typeof window !== 'undefined') {
+          const localUser = localStorage.getItem('idea_hub_local_user');
+          if (localUser) {
+             const p = JSON.parse(localUser);
+             clientId = p.id || 'client-guest';
+          }
         }
-      }
+      } catch(e) {}
       
       const escrowPayload = {
-        service_order_id: res.data?.[0]?.id || null, // Will be null if both failed, which is acceptable
+        service_order_id: res.data?.[0]?.id || null, 
         client_id: clientId,
+        client_email: orderData.client_email,
         client_name: orderData.client_name,
         professional_id: orderData.professional_id,
         professional_name: orderData.professional_name || 'Professional',
         title: orderData.project_title,
-        amount: parseInt(orderData.budget_range?.replace(/[^0-9]/g, '') || '100000'), // Fallback amount
+        amount: parseInt(orderData.budget_range?.replace(/[^0-9]/g, '') || '100000'), 
         commission_rate: 0.10,
         status: 'pending_payment'
       };
+
       
       const { data: escrowData, error: escrowError } = await supabase.from('escrow_projects').insert([escrowPayload]).select();
       if (escrowError) {
          console.error("Failed to create escrow project:", escrowError);
       } else {
-         // Return the escrow data as success if the original insert failed
          if (res.error) {
-            res = { data: escrowData, error: null, count: null, status: 201, statusText: 'Created' };
+            res = { data: escrowData, error: null, count: null, status: 201, statusText: 'Created' } as any;
          }
       }
     }
+
+
 
     return { data: res.data, error: res.error };
   } catch (err: any) {
@@ -1598,64 +1603,70 @@ export async function clientApproveEscrowBackend(projectId: string): Promise<{er
   return { error };
 }
 
-export async function fetchProfessionalOrders(profId: string): Promise<any[]> {
+export async function fetchProfessionalOrders(profId: string, email?: string): Promise<any[]> {
   try {
-    const { data, error } = await supabase.from('escrow_projects')
-      .select('*')
-      .eq('professional_id', profId)
-      .order('created_at', { ascending: false });
+    let query = supabase.from('escrow_projects').select('*');
+    
+    if (email) {
+      query = query.or(`professional_id.eq.${profId},professional_email.eq.${email}`);
+    } else {
+      query = query.eq('professional_id', profId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
       
     if (error) {
       console.error("fetchProfessionalOrders error:", error);
       return [];
     }
     
-    // Map escrow projects to the expected order format
     return (data || []).map(p => ({
       id: p.id,
       project_title: p.title,
       project_description: 'Service request via Escrow Payment System',
       budget_range: '₦' + Number(p.amount).toLocaleString(),
       client_name: p.client_name || 'Client',
-      client_email: 'Contact via chat',
+      client_email: p.client_email || 'Contact via chat',
       professional_name: p.professional_name,
       service_category: 'Professional Service',
       status: p.status,
       created_at: p.created_at
     }));
   } catch (err) {
-    console.error("fetchProfessionalOrders catch:", err);
     return [];
   }
 }
 
-export async function fetchClientOrders(clientId: string): Promise<any[]> {
+export async function fetchClientOrders(clientId: string, email?: string): Promise<any[]> {
   try {
-    const { data, error } = await supabase.from('escrow_projects')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
+    let query = supabase.from('escrow_projects').select('*');
+    
+    if (email) {
+      query = query.or(`client_id.eq.${clientId},client_email.eq.${email}`);
+    } else {
+      query = query.eq('client_id', clientId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
       
     if (error) {
       console.error("fetchClientOrders error:", error);
       return [];
     }
     
-    // Map escrow projects to the expected order format
     return (data || []).map(p => ({
       id: p.id,
       project_title: p.title,
       project_description: 'Service request via Escrow Payment System',
       budget_range: '₦' + Number(p.amount).toLocaleString(),
       client_name: p.client_name || 'Client',
-      client_email: 'Contact via chat',
+      client_email: p.client_email || 'Contact via chat',
       professional_name: p.professional_name,
       service_category: 'Professional Service',
       status: p.status,
       created_at: p.created_at
     }));
   } catch (err) {
-    console.error("fetchClientOrders catch:", err);
     return [];
   }
 }

@@ -1,74 +1,17 @@
 #!/bin/bash
 cat << 'INNER_EOF' > replacement.txt
-export async function submitOrderToSupabase(orderData: ServiceOrder): Promise<{ data: any; error: any }> {
-  try {
-    const payload = {
-      client_name: orderData.client_name,
-      client_email: orderData.client_email,
-      client_phone: orderData.client_phone,
-      service_category: orderData.service_category,
-      project_title: orderData.project_title,
-      project_description: orderData.project_description,
-      budget_range: orderData.budget_range || 'Flexible',
-      timeline: orderData.timeline || 'Flexible',
-      professional_id: orderData.professional_id || null,
-      professional_name: orderData.professional_name || null,
-      attachment_url: orderData.attachment_url || null,
-      cloud_link: orderData.cloud_link || null,
-      status: orderData.status || 'pending',
-      created_at: new Date().toISOString()
-    };
-    
-    // First try to insert into client_requests or service_orders (may fail if tables are missing, which is fine)
-    let res = await supabase.from('client_requests').insert([payload]).select();
-    if (res.error) {
-       res = await supabase.from('service_orders').insert([payload]).select();
-    }
-    
-    // Auto-create Escrow Project if a professional is assigned
-    if (orderData.professional_id) {
-      let clientId = 'client-guest';
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData?.user) {
-        clientId = authData.user.id;
-      } else if (typeof window !== 'undefined') {
-        const localUser = localStorage.getItem('idea_hub_local_user');
-        if (localUser) {
-          try {
-             clientId = JSON.parse(localUser).id || 'client-guest';
-          } catch(e) {}
-        }
-      }
-      
       const escrowPayload = {
-        service_order_id: res.data?.[0]?.id || null, // Will be null if both failed, which is acceptable
+        service_order_id: res.data?.[0]?.id || null, 
         client_id: clientId,
+        client_email: orderData.client_email,
         client_name: orderData.client_name,
         professional_id: orderData.professional_id,
         professional_name: orderData.professional_name || 'Professional',
         title: orderData.project_title,
-        amount: parseInt(orderData.budget_range?.replace(/[^0-9]/g, '') || '100000'), // Fallback amount
+        amount: parseInt(orderData.budget_range?.replace(/[^0-9]/g, '') || '100000'), 
         commission_rate: 0.10,
         status: 'pending_payment'
       };
-      
-      const { data: escrowData, error: escrowError } = await supabase.from('escrow_projects').insert([escrowPayload]).select();
-      if (escrowError) {
-         console.error("Failed to create escrow project:", escrowError);
-      } else {
-         // Return the escrow data as success if the original insert failed
-         if (res.error) {
-            res = { data: escrowData, error: null, count: null, status: 201, statusText: 'Created' };
-         }
-      }
-    }
-
-    return { data: res.data, error: res.error };
-  } catch (err: any) {
-    console.error('Supabase submitOrder error:', err);
-    return { data: null, error: err };
-  }
-}
 INNER_EOF
 
-perl -i -pe 'BEGIN{undef $/;} s/export async function submitOrderToSupabase.*?\}\n\}/`cat replacement.txt`/esg' src/lib/supabase.ts
+perl -i -pe 'BEGIN{undef $/;} s/      const escrowPayload = \{\n        service_order_id: res.data\?\.\[0\]\?\.id \|\| null, \n        client_id: clientId,\n        client_name: orderData.client_name,\n        professional_id: orderData.professional_id,\n        professional_name: orderData.professional_name \|\| '"'"'Professional'"'"',\n        title: orderData.project_title,\n        amount: parseInt\(orderData.budget_range\?\.replace\(\/\[\^0-9\]\/g, '"'"''"'"'\) \|\| '"'"'100000'"'"'\), \n        commission_rate: 0.10,\n        status: '"'"'pending_payment'"'"'\n      \};/`cat replacement.txt`/esg' src/lib/supabase.ts
