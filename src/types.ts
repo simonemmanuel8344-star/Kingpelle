@@ -1,3 +1,13 @@
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+  type: 'status_update' | 'message' | 'system';
+}
+
 export interface PortfolioItem {
   id: string;
   title: string;
@@ -49,6 +59,11 @@ export interface JobPosting {
   description: string;
   company: string;
   jobType?: string;
+  type?: string;
+  location?: string;
+  salary?: string;
+  status?: string;
+  requirements?: string[];
   logoUrl?: string;
 }
 
@@ -56,14 +71,22 @@ export interface JobApplication {
   id: string;
   jobId: string;
   jobTitle?: string;
+  company?: string;
   fullName: string;
   phone: string;
+  email?: string;
+  userId?: string;
   cvUrl?: string;
   cvName?: string;
   cvLink?: string;
   photoUrl?: string;
   resumeText?: string;
   appliedAt: string;
+  status?: 'pending' | 'reviewed' | 'contacted' | 'rejected';
+  internalStatus?: string;
+  statusUpdatedAt?: string;
+  adminFeedback?: string;
+  internalNotes?: string;
 }
 
 export interface UserProfile {
@@ -94,6 +117,7 @@ export interface ChatMessage {
   id: string;
   chatId: string;
   senderId: string;
+  senderName?: string;
   text: string;
   timestamp: string;
 }
@@ -130,4 +154,66 @@ export interface ContactMessage {
   subject?: string;
   message: string;
   created_at?: string;
+}
+
+// --- Escrow Payment Management System ---
+export type EscrowStatus = 
+  | 'pending_payment'
+  | 'payment_processing'
+  | 'funded'
+  | 'work_in_progress'
+  | 'work_submitted'
+  | 'client_review'
+  | 'client_approved'
+  | 'awaiting_admin_release'
+  | 'released'
+  | 'refund_requested'
+  | 'refunded'
+  | 'disputed'
+  | 'cancelled';
+
+export interface EscrowProject {
+  id: string;
+  service_order_id?: string;
+  client_id: string;
+  client_name: string;
+  professional_id: string;
+  professional_name: string;
+  title: string;
+  amount: number;
+  commission_rate: number;
+  status: EscrowStatus;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  user_type: 'client' | 'professional' | 'admin';
+  pending_escrow: number;
+  available_balance: number;
+  withdrawn: number;
+  updated_at?: string;
+}
+
+export interface EscrowTransaction {
+  id: string;
+  project_id: string;
+  wallet_id?: string;
+  amount: number;
+  type: 'fund' | 'release' | 'refund' | 'withdraw' | 'commission';
+  status: string;
+  reference_id?: string;
+  created_at: string;
+}
+
+export interface Dispute {
+  id: string;
+  project_id: string;
+  opened_by: string;
+  reason: string;
+  status: 'open' | 'resolved';
+  resolution?: string;
+  created_at: string;
 }

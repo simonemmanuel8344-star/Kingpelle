@@ -1,0 +1,39 @@
+#!/bin/bash
+find src -type f -name "*.tsx" -exec sed -i \
+  -e 's/bg-amber-400 text-gray-900/bg-indigo-600 text-white/g' \
+  -e 's/text-gray-900 bg-amber-400/text-white bg-indigo-600/g' \
+  -e 's/bg-amber-400\/10/bg-indigo-600\/10/g' \
+  -e 's/bg-amber-400\/15/bg-indigo-600\/15/g' \
+  -e 's/bg-amber-400\/20/bg-indigo-600\/20/g' \
+  -e 's/bg-amber-400\/40/bg-indigo-600\/10/g' \
+  -e 's/bg-amber-400/bg-indigo-600/g' \
+  -e 's/text-amber-400/text-indigo-600/g' \
+  -e 's/text-amber-300/text-indigo-500/g' \
+  -e 's/text-amber-500/text-indigo-700/g' \
+  -e 's/border-amber-400/border-indigo-600/g' \
+  -e 's/border-amber-400\/20/border-indigo-600\/20/g' \
+  -e 's/border-amber-400\/40/border-indigo-600\/40/g' \
+  -e 's/border-amber-400\/50/border-indigo-600\/50/g' \
+  -e 's/hover:bg-amber-300/hover:bg-indigo-700/g' \
+  -e 's/hover:bg-amber-400/hover:bg-indigo-600/g' \
+  -e 's/hover:border-amber-400/hover:border-indigo-600/g' \
+  -e 's/hover:text-amber-400/hover:text-indigo-600/g' \
+  -e 's/hover:text-amber-300/hover:text-indigo-500/g' \
+  -e 's/hover:text-amber-500/hover:text-indigo-700/g' \
+  -e 's/shadow-amber-400\/10/shadow-indigo-600\/10/g' \
+  -e 's/shadow-amber-400\/15/shadow-indigo-600\/15/g' \
+  -e 's/shadow-amber-400\/20/shadow-indigo-600\/20/g' \
+  -e 's/shadow-amber-400\/40/shadow-indigo-600\/40/g' \
+  -e 's/from-amber-400/from-indigo-600/g' \
+  -e 's/to-amber-500/to-indigo-700/g' \
+  -e 's/to-amber-400/to-indigo-600/g' \
+  -e 's/hover:from-amber-300/hover:from-indigo-500/g' \
+  -e 's/hover:to-amber-400/hover:to-indigo-600/g' \
+  -e 's/focus:border-amber-400/focus:border-indigo-600/g' \
+  -e 's/focus:ring-amber-400/focus:ring-indigo-600/g' \
+  -e 's/group-hover:bg-amber-400/group-hover:bg-indigo-600/g' \
+  -e 's/group-hover:border-amber-400/group-hover:border-indigo-600/g' \
+  -e 's/group-hover:text-amber-400/group-hover:text-indigo-600/g' \
+  -e 's/active:bg-amber-500/active:bg-indigo-800/g' \
+  -e 's/hover:text-gray-900/hover:text-white/g' \
+  {} +

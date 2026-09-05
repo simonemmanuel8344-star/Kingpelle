@@ -38,10 +38,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             className={`
               animate-in slide-in-from-right-8 fade-in duration-300
               px-4 py-3 rounded-lg shadow-lg border text-sm font-medium flex items-center gap-2
-              ${toast.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' : ''}
-              ${toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : ''}
-              ${toast.type === 'info' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : ''}
-              ${!['success', 'error', 'info'].includes(toast.type) ? 'bg-white/10 border-white/20 text-white' : ''}
+              ${toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : ''}
+              ${toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : ''}
+              ${toast.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}
+              ${!['success', 'error', 'info'].includes(toast.type) ? 'bg-gray-50 border-gray-200 text-gray-800' : ''}
             `}
           >
             {toast.type === 'success' && (
