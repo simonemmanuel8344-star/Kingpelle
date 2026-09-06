@@ -415,8 +415,8 @@ export async function saveRegisteredProfessional(prof: Professional): Promise<vo
   const cleanProf: Professional = {
     ...prof,
     id: prof.id,
-    fullName: prof.fullName.trim(),
-    email: prof.email.trim().toLowerCase(),
+    fullName: (prof.fullName || "").trim(),
+    email: (prof.email || "").trim().toLowerCase(),
     phone: prof.phone || '',
     jobCategory: prof.jobCategory || 'Creative Specialist',
     skills: Array.isArray(prof.skills) ? prof.skills : [],
@@ -579,7 +579,7 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
             ratingCount: p.rating_count ?? 1,
             createdAt: p.created_at || new Date().toISOString()
           };
-          map.set(key, { ...existing, ...mapped });
+          map.set(key, existing ? { ...mapped, ...existing, portfolioItems: existing.portfolioItems || mapped.portfolioItems } : mapped);
         }
       }
     }
@@ -1670,4 +1670,37 @@ export async function fetchClientOrders(clientId: string, email?: string): Promi
   } catch (err) {
     return [];
   }
+}
+
+export const SYNC_TAG_SETTINGS = 'IDEA_SYNC:settings';
+
+export async function saveGlobalSettings(settings: any) {
+  try {
+    await supabase.from('contact_messages').insert([{
+      name: 'Global Settings',
+      email: 'admin@ideacreationhub.com',
+      subject: SYNC_TAG_SETTINGS,
+      message: JSON.stringify(settings)
+    }]);
+  } catch (err) {
+    console.warn('Sync settings error:', err);
+  }
+}
+
+export async function fetchGlobalSettings(): Promise<any | null> {
+  try {
+    const { data } = await supabase
+      .from('contact_messages')
+      .select('message')
+      .eq('subject', SYNC_TAG_SETTINGS)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (data && data.length > 0) {
+      return JSON.parse(data[0].message);
+    }
+  } catch (err) {
+    console.warn('Fetch settings error:', err);
+  }
+  return null;
 }

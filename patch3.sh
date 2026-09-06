@@ -1,0 +1,1 @@
+sed -i 's/onChange={e => setFormData({...formData, yearsOfExperience: parseInt(e.target.value) || 0})}/onChange={e => setFormData({...formData, yearsOfExperience: e.target.value ? parseInt(e.target.value) : ""})}/g' src/components/AdminDashboard.tsx

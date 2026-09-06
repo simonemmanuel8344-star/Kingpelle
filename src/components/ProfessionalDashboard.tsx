@@ -1,11 +1,12 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { supabase, uploadFileToSupabase, fetchChatSessions, saveRegisteredProfessional, fetchUserJobApplications, fetchProfessionalOrders, updateEscrowStatus } from '../lib/supabase';
+import { supabase, uploadFileToSupabase, fetchChatSessions, saveRegisteredProfessional, fetchUserJobApplications, fetchProfessionalOrders, updateEscrowStatus, fetchClientOrders } from '../lib/supabase';
 
 import { ChatSession, Professional, Rating, PortfolioItem, JobApplication } from '../types';
 import { MessageSquare, Star, ArrowRight, Award, Phone, Mail, Edit3, CheckCircle, Clock, Plus, Trash2, ExternalLink, Image as ImageIcon, MapPin, Eye, KeyRound, Lock, Shield, Briefcase, CheckCircle2, Clock3, Sparkles, FileText , User as UserIcon } from 'lucide-react';
 import { Chat } from './Chat';
 import { ProfessionalWalletDashboard } from './escrow/ProfessionalWalletDashboard';
+import { extractUrl } from "../lib/urlUtils";
 import { useToast } from '../contexts/ToastContext';
 import { compressImage } from '../lib/imageCompressor';
 
@@ -133,7 +134,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
 
     const orderSub = supabase.channel("pro-orders")
       .on("postgres_changes", { event: "*", schema: "public", table: "escrow_projects" }, () => {
-        loadOrders(currentUser);
+        fetchProfessionalOrders(currentUser.id).then(setOrders);
       })
       .subscribe();
 
@@ -529,7 +530,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
               <input
                 type="text"
                 value={editForm.picture}
-                onChange={e => setEditForm({...editForm, picture: e.target.value})}
+                onChange={e => setEditForm({...editForm, picture: extractUrl(e.target.value)})}
                 placeholder="Or paste image URL"
                 className="flex-1 px-3.5 py-2 bg-white/60 border border-gray-200/60 rounded-xl text-gray-900 text-xs"
               />
@@ -606,7 +607,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
                       <input
                         type="text"
                         value={newProject.imageUrl}
-                        onChange={e => setNewProject({...newProject, imageUrl: e.target.value})}
+                        onChange={e => setNewProject({...newProject, imageUrl: extractUrl(e.target.value)})}
                         placeholder="https://..."
                         className="flex-1 px-3 py-2 bg-white/60 border border-gray-200/60 rounded-lg text-gray-900 text-xs"
                       />
@@ -626,7 +627,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
                     <input
                       type="url"
                       value={newProject.projectUrl}
-                      onChange={e => setNewProject({...newProject, projectUrl: e.target.value})}
+                      onChange={e => setNewProject({...newProject, projectUrl: extractUrl(e.target.value)})}
                       placeholder="https://example.com"
                       className="w-full px-3 py-2 bg-white/60 border border-gray-200/60 rounded-lg text-gray-900 text-xs"
                     />

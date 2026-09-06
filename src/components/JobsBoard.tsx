@@ -1,5 +1,6 @@
 import React, { useState, ChangeEvent } from 'react';
 import { JobPosting, JobApplication } from '../types';
+import { extractUrl } from "../lib/urlUtils";
 import { Briefcase, X, UploadCloud, CheckCircle, ArrowRight, FileText, Image as ImageIcon, Link as LinkIcon, AlertCircle, Loader2 } from 'lucide-react';
 import { compressImage, readFileAsBase64 } from '../lib/imageCompressor';
 
@@ -262,7 +263,7 @@ export function JobsBoard({ jobs, onSubmitApplication }: Props) {
                       <input 
                         type="url" 
                         value={form.cvLink} 
-                        onChange={e => setForm({...form, cvLink: e.target.value})} 
+                        onChange={e => setForm({...form, cvLink: extractUrl(e.target.value)})} 
                         className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-gray-200/60 rounded-xl text-gray-900 text-sm focus:border-indigo-600 focus:outline-none" 
                         placeholder="https://drive.google.com/... or https://linkedin.com/in/..." 
                       />

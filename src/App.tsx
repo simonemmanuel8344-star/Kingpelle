@@ -37,7 +37,7 @@ import { JobsPage } from './pages/JobsPage';
 import { ContactPage } from './pages/ContactPage';
 
 import { MessageCircle } from 'lucide-react';
-import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus } from './lib/supabase';
+import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, saveGlobalSettings, fetchGlobalSettings } from './lib/supabase';
 import { useToast } from './contexts/ToastContext';
 
 const parseInitialRoute = (): AppView => {
@@ -171,18 +171,25 @@ export default function App() {
         const apps = await fetchJobApplications();
         setApplications(apps);
 
-        const { data: setts } = await supabase.from('settings').select('*').eq('id', 'global').single();
-        if (setts) {
-          if (setts.logoUrl) setLogoUrl(setts.logoUrl);
-          if (setts.heroImageUrl) setHeroImageUrl(setts.heroImageUrl);
-          if (setts.professionalInviteCode) setProfessionalInviteCode(setts.professionalInviteCode);
+        const syncSettings = await fetchGlobalSettings();
+        if (syncSettings) {
+          if (syncSettings.logoUrl) setLogoUrl(syncSettings.logoUrl);
+          if (syncSettings.heroImageUrl) setHeroImageUrl(syncSettings.heroImageUrl);
+          if (syncSettings.professionalInviteCode) setProfessionalInviteCode(syncSettings.professionalInviteCode);
         } else {
-          const lUrl = localStorage.getItem('settings_logoUrl');
-          const hUrl = localStorage.getItem('settings_heroImageUrl');
-          const c = localStorage.getItem('settings_professionalInviteCode');
-          if (lUrl !== null) setLogoUrl(lUrl);
-          if (hUrl !== null) setHeroImageUrl(hUrl);
-          if (c !== null) setProfessionalInviteCode(c);
+          const { data: setts } = await supabase.from('settings').select('*').eq('id', 'global').single();
+          if (setts) {
+            if (setts.logoUrl) setLogoUrl(setts.logoUrl);
+            if (setts.heroImageUrl) setHeroImageUrl(setts.heroImageUrl);
+            if (setts.professionalInviteCode) setProfessionalInviteCode(setts.professionalInviteCode);
+          } else {
+            const lUrl = localStorage.getItem('settings_logoUrl');
+            const hUrl = localStorage.getItem('settings_heroImageUrl');
+            const c = localStorage.getItem('settings_professionalInviteCode');
+            if (lUrl !== null) setLogoUrl(lUrl);
+            if (hUrl !== null) setHeroImageUrl(hUrl);
+            if (c !== null) setProfessionalInviteCode(c);
+          }
         }
       } catch (err) {
         console.error("Error fetching initial data:", err);
@@ -491,34 +498,28 @@ export default function App() {
   const handleUpdateLogo = async (url: string) => {
     try {
       await supabase.from('settings').upsert({ id: 'global', logoUrl: url });
-      setLogoUrl(url);
-      localStorage.setItem('settings_logoUrl', url);
-    } catch (err) {
-      setLogoUrl(url);
-      localStorage.setItem('settings_logoUrl', url);
-    }
+    } catch (e) {}
+    setLogoUrl(url);
+    localStorage.setItem('settings_logoUrl', url);
+    await saveGlobalSettings({ logoUrl: url, heroImageUrl, professionalInviteCode });
   };
 
   const handleUpdateHeroImage = async (url: string) => {
     try {
       await supabase.from('settings').upsert({ id: 'global', heroImageUrl: url });
-      setHeroImageUrl(url);
-      localStorage.setItem('settings_heroImageUrl', url);
-    } catch (err) {
-      setHeroImageUrl(url);
-      localStorage.setItem('settings_heroImageUrl', url);
-    }
+    } catch (e) {}
+    setHeroImageUrl(url);
+    localStorage.setItem('settings_heroImageUrl', url);
+    await saveGlobalSettings({ logoUrl, heroImageUrl: url, professionalInviteCode });
   };
 
   const handleUpdateInviteCode = async (code: string) => {
     try {
       await supabase.from('settings').upsert({ id: 'global', professionalInviteCode: code });
-      setProfessionalInviteCode(code);
-      localStorage.setItem('settings_professionalInviteCode', code);
-    } catch (err) {
-      setProfessionalInviteCode(code);
-      localStorage.setItem('settings_professionalInviteCode', code);
-    }
+    } catch (e) {}
+    setProfessionalInviteCode(code);
+    localStorage.setItem('settings_professionalInviteCode', code);
+    await saveGlobalSettings({ logoUrl, heroImageUrl, professionalInviteCode: code });
   };
 
   const handleChatClick = (prof: Professional) => {

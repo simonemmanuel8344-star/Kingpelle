@@ -1,0 +1,1 @@
+sed -i 's/value={(formData.skills || \[\]).join(", ")} onChange={e => setFormData({...formData, skills: e.target.value.split(",").map((s: string) => s.trim()).filter(Boolean)})}/value={Array.isArray(formData.skills) ? formData.skills.join(", ") : (formData.skills || "")} onChange={e => setFormData({...formData, skills: e.target.value})}/g' src/components/AdminDashboard.tsx

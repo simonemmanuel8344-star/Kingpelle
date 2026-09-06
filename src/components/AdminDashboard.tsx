@@ -520,6 +520,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
+    
     e.preventDefault();
     try {
       if (modalType === 'project') {
@@ -543,11 +544,15 @@ export function AdminDashboard(props: AdminDashboardProps) {
           showToast('Job added successfully', 'success');
         }
       } else if (modalType === 'professional') {
+        const payload = { ...formData };
+        if (typeof payload.skills === 'string') {
+          payload.skills = payload.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
         if (editingId) {
-          await props.onUpdateProfessional(editingId, formData);
+          await props.onUpdateProfessional(editingId, payload);
           showToast('Professional updated successfully', 'success');
         } else {
-          await props.onAddProfessional({ ...formData, id: Date.now().toString(), joinedAt: new Date().toISOString() });
+          await props.onAddProfessional({ ...payload, id: Date.now().toString(), joinedAt: new Date().toISOString() });
           showToast('Professional added successfully', 'success');
         }
       }
@@ -1614,9 +1619,9 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Website Logo (URL or Upload)</label>
                       <div className="flex gap-2">
                         <input 
-                          type="url" 
+                          type="text" 
                           value={settingsForm.logoUrl} 
-                          onChange={(e) => setSettingsForm({...settingsForm, logoUrl: e.target.value})}
+                          onChange={(e) => setSettingsForm({...settingsForm, logoUrl: extractUrl(e.target.value)})}
                           placeholder="https://example.com/logo.png"
                           className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-4 py-3 text-gray-900 text-sm focus:border-indigo-600 outline-none" 
                         />
@@ -1637,9 +1642,9 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Hero Showcase Image (URL or Upload)</label>
                       <div className="flex gap-2">
                         <input 
-                          type="url" 
+                          type="text" 
                           value={settingsForm.heroImageUrl} 
-                          onChange={(e) => setSettingsForm({...settingsForm, heroImageUrl: e.target.value})}
+                          onChange={(e) => setSettingsForm({...settingsForm, heroImageUrl: extractUrl(e.target.value)})}
                           placeholder="https://example.com/hero.jpg"
                           className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-4 py-3 text-gray-900 text-sm focus:border-indigo-600 outline-none" 
                         />
@@ -1663,7 +1668,16 @@ export function AdminDashboard(props: AdminDashboardProps) {
                 {/* System Status */}
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Supabase Infrastructure Status</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-500 mb-2">Professional Bio</label>
+                        <textarea value={formData.bio || ""} onChange={e => setFormData({...formData, bio: e.target.value})} rows={3} className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" placeholder="Short biography..."></textarea>
+                      </div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-500 mb-2">Core Skills & Specialties (Comma separated)</label>
+                        <input type="text" value={Array.isArray(formData.skills) ? formData.skills.join(", ") : (formData.skills || "")} onChange={e => setFormData({...formData, skills: e.target.value})} placeholder="e.g. Graphic Design, Branding, UI/UX" className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                      </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200/60 flex items-center gap-4">
                       <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
                       <div>
@@ -1716,7 +1730,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       <div>
                         <label className="block text-sm font-medium text-gray-500 mb-2">Image URL or Upload</label>
                         <div className="flex items-center gap-3">
-                          <input type="url" value={formData.imageUrl || ''} onChange={e => setFormData({...formData, imageUrl: e.target.value})} placeholder="https://..." className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                          <input type="text" value={formData.imageUrl || ''} onChange={e => setFormData({...formData, imageUrl: extractUrl(e.target.value)})} placeholder="https://..." className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
                           <label className="bg-gray-100/80 hover:bg-gray-200 text-gray-900 px-4 py-3 rounded-xl cursor-pointer transition-colors whitespace-nowrap">
                             Upload File
                             <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'imageUrl')} className="hidden" />
@@ -1775,21 +1789,97 @@ export function AdminDashboard(props: AdminDashboardProps) {
                           <label className="block text-sm font-medium text-gray-500 mb-2">Email Address</label>
                           <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 mb-2">Phone Number</label>
+                          <input type="text" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                        </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-500 mb-2">Job Category</label>
                           <input type="text" required value={formData.jobCategory || ''} onChange={e => setFormData({...formData, jobCategory: e.target.value})} className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
                         </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-500 mb-2">Profile Picture (URL or Upload)</label>
-                          <div className="flex items-center gap-3">
-                            <input type="url" value={formData.picture || ''} onChange={e => setFormData({...formData, picture: e.target.value})} placeholder="https://..." className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
-                            <label className="bg-gray-100/80 hover:bg-gray-200 text-gray-900 px-4 py-3 rounded-xl cursor-pointer transition-colors whitespace-nowrap">
-                              Upload
-                              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'picture')} className="hidden" />
-                            </label>
-                          </div>
+                          <label className="block text-sm font-medium text-gray-500 mb-2">Years of Experience</label>
+                          <input type="text" value={formData.yearsOfExperience || ''} onChange={e => setFormData({...formData, yearsOfExperience: e.target.value})} className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 mb-2">Location</label>
+                          <input type="text" value={formData.location || ''} onChange={e => setFormData({...formData, location: e.target.value})} placeholder="e.g. Lagos, Nigeria" className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-2">Profile Picture (URL or Upload)</label>
+                        <div className="flex items-center gap-3">
+                          <input type="text" value={formData.picture || ''} onChange={e => setFormData({...formData, picture: extractUrl(e.target.value)})} placeholder="https://..." className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                          <label className="bg-gray-100/80 hover:bg-gray-200 text-gray-900 px-4 py-3 rounded-xl cursor-pointer transition-colors whitespace-nowrap">
+                            Upload
+                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'picture')} className="hidden" />
+                          </label>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-2">Professional Bio</label>
+                        <textarea value={formData.bio || ''} onChange={e => setFormData({...formData, bio: e.target.value})} rows={3} className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" placeholder="Short biography..."></textarea>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-2">Core Skills & Specialties (Comma separated)</label>
+                        <input type="text" value={Array.isArray(formData.skills) ? formData.skills.join(', ') : (formData.skills || '')} onChange={e => setFormData({...formData, skills: e.target.value})} placeholder="e.g. Graphic Design, Branding, UI/UX" className="w-full bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                      </div>
+
+                      <div className="border-t border-gray-200/60 pt-4 mt-2">
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-sm font-medium text-gray-900">Showcase Portfolio</label>
+                          <button type="button" onClick={() => setFormData({...formData, portfolioItems: [...(formData.portfolioItems || []), { id: Date.now().toString(), title: '', imageUrl: '' }]})} className="text-xs font-semibold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
+                            + Add Portfolio Item
+                          </button>
+                        </div>
+                        {(!formData.portfolioItems || formData.portfolioItems.length === 0) && (
+                          <p className="text-xs text-gray-400 italic">No portfolio items added yet.</p>
+                        )}
+                        <div className="space-y-3">
+                          {formData.portfolioItems?.map((item: any, idx: number) => (
+                            <div key={item.id || idx} className="bg-gray-50 border border-gray-200/60 rounded-xl p-3 relative group">
+                              <button type="button" onClick={() => setFormData({...formData, portfolioItems: formData.portfolioItems.filter((_: any, i: number) => i !== idx)})} className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-md shadow-sm border border-red-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                              <div className="grid grid-cols-1 gap-3 mb-2">
+                                <input type="text" placeholder="Project Title (e.g. E-Commerce Redesign)" value={item.title || ''} onChange={(e) => {
+                                  const newItems = [...formData.portfolioItems];
+                                  newItems[idx].title = e.target.value;
+                                  setFormData({...formData, portfolioItems: newItems});
+                                }} className="w-full bg-white border border-gray-200/60 rounded-lg px-3 py-2 text-sm focus:border-indigo-600 outline-none" />
+                              </div>
+                              <div className="flex gap-2">
+                                <input type="text" placeholder="Image URL (e.g. https://...)" value={item.imageUrl || ''} onChange={(e) => {
+                                  const newItems = [...formData.portfolioItems];
+                                  newItems[idx].imageUrl = extractUrl(e.target.value);
+                                  setFormData({...formData, portfolioItems: newItems});
+                                }} className="flex-1 bg-white border border-gray-200/60 rounded-lg px-3 py-2 text-sm focus:border-indigo-600 outline-none" />
+                                <label className="bg-white border border-gray-200/60 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg cursor-pointer transition-colors whitespace-nowrap text-sm font-medium">
+                                  Upload
+                                  <input type="file" accept="image/*" onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onloadend = () => {
+                                        const newItems = [...formData.portfolioItems];
+                                        newItems[idx].imageUrl = reader.result as string;
+                                        setFormData({...formData, portfolioItems: newItems});
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }} className="hidden" />
+                                </label>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </>

@@ -6,8 +6,8 @@ import {
   fetchUserJobApplications, fetchUserNotifications, fetchClientOrders, markNotificationAsRead, markAllNotificationsAsRead, updateEscrowStatus 
 } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
-import { 
-  MessageSquare, ArrowRight, Settings, Lock, Mail, Clock, 
+import {
+  Shield, MessageSquare, ArrowRight, Settings, Lock, Mail, Clock, 
   ShieldCheck, Briefcase, CheckCircle2, Clock3, AlertCircle, 
   FileText, ExternalLink, Phone, User, Calendar, Sparkles, 
   ArrowUpRight, RefreshCw, ChevronRight, HelpCircle
@@ -795,7 +795,7 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
 
       {/* TAB: ESCROW PAYMENTS */}
       {activeTab === 'escrow' && (
-        <ClientEscrowDashboard userId={user?.id || ''} />
+        <ClientEscrowDashboard userId={currentUser?.id || ''} />
       )}
 
       {/* TAB 2: ACTIVE CONVERSATIONS */}
