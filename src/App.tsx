@@ -37,7 +37,7 @@ import { JobsPage } from './pages/JobsPage';
 import { ContactPage } from './pages/ContactPage';
 
 import { MessageCircle } from 'lucide-react';
-import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, saveGlobalSettings, fetchGlobalSettings, generateUUID, ensureUUID } from './lib/supabase';
+import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, isProfessionalDeleted, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, saveGlobalSettings, fetchGlobalSettings, generateUUID, ensureUUID } from './lib/supabase';
 import { useToast } from './contexts/ToastContext';
 
 const parseInitialRoute = (): AppView => {
@@ -147,7 +147,12 @@ export default function App() {
         const existingIds = new Set(registeredPros.map(p => p.id));
         const existingEmails = new Set(registeredPros.map(p => p.email?.toLowerCase()).filter(Boolean));
         const existingNames = new Set(registeredPros.map(p => p.fullName?.trim().toLowerCase()).filter(Boolean));
-        const remainingInitial = initialProfessionals.filter(p => !existingIds.has(p.id) && !existingEmails.has(p.email?.toLowerCase()) && !existingNames.has(p.fullName?.trim().toLowerCase()));
+        const remainingInitial = initialProfessionals.filter(p => 
+          !existingIds.has(p.id) && 
+          !existingEmails.has(p.email?.toLowerCase()) && 
+          !existingNames.has(p.fullName?.trim().toLowerCase()) &&
+          !isProfessionalDeleted(p.id, p.email, p.fullName)
+        );
         setProfessionals([...registeredPros, ...remainingInitial]);
 
         const rts = await fetchSupabaseData('ratings');
@@ -412,12 +417,22 @@ export default function App() {
     }
   };
 
-  const handleDeleteProfessional = async (id: string) => {
+  const handleDeleteProfessional = async (id: string, email?: string, name?: string) => {
     try {
-      await deleteRegisteredProfessional(id);
-      setProfessionals(prev => prev.filter(p => p.id !== id));
+      const prof = professionals.find(p => p.id === id || (email && p.email?.toLowerCase() === email.toLowerCase()));
+      const targetEmail = email || prof?.email;
+      const targetName = name || prof?.fullName;
+      await deleteRegisteredProfessional(id, targetEmail, targetName);
+      setProfessionals(prev => prev.filter(p => 
+        p.id !== id && 
+        (!targetEmail || p.email?.toLowerCase() !== targetEmail.toLowerCase()) &&
+        (!targetName || p.fullName?.trim().toLowerCase() !== targetName.trim().toLowerCase())
+      ));
       showToast("Professional deleted successfully", "success");
-    } catch (err) { console.error("Error deleting professional:", err); showToast("Failed to delete professional", "error"); }
+    } catch (err: any) {
+      console.error("Error deleting professional:", err);
+      showToast(err?.message ? `Failed to delete: ${err.message}` : "Failed to delete professional", "error");
+    }
   };
 
   const handleAddProject = async (proj: Project) => {

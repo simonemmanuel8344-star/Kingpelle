@@ -575,37 +575,91 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
   } catch {}
 
   const result = Array.from(map.values());
+
+  // Filter out any professionals marked as deleted
+  const filteredResult = result.filter(p => !isProfessionalDeleted(p.id, p.email, p.fullName));
+
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem('idea_hub_professionals', JSON.stringify(result));
+      localStorage.setItem('idea_hub_professionals', JSON.stringify(filteredResult));
     } catch {}
   }
 
-  return result;
+  return filteredResult;
 }
 
-export async function deleteRegisteredProfessional(id: string): Promise<void> {
+export function isProfessionalDeleted(id?: string, email?: string, name?: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem('idea_hub_deleted_pros');
+    if (!raw) return false;
+    const list: string[] = JSON.parse(raw);
+    if (id && list.includes(id)) return true;
+    if (email && list.includes(email.trim().toLowerCase())) return true;
+    if (name && list.includes(name.trim().toLowerCase())) return true;
+  } catch {}
+  return false;
+}
+
+export async function deleteRegisteredProfessional(id: string, email?: string, name?: string): Promise<void> {
+  const cleanEmail = email ? email.trim().toLowerCase() : '';
+  const cleanName = name ? name.trim() : '';
+
   // 1. Delete from Supabase professionals table
   try {
-    await supabase.from('professionals').delete().eq('id', id);
+    if (isValidUUID(id)) {
+      const { error: errId } = await supabase.from('professionals').delete().eq('id', id);
+      if (errId) console.warn('Supabase delete pro by id error:', errId);
+    }
+    if (cleanEmail) {
+      const { error: errEmail } = await supabase.from('professionals').delete().eq('email', cleanEmail);
+      if (errEmail) console.warn('Supabase delete pro by email error:', errEmail);
+    }
+    if (cleanName && !isValidUUID(id) && !cleanEmail) {
+      const { error: errName } = await supabase.from('professionals').delete().eq('full_name', cleanName);
+      if (errName) console.warn('Supabase delete pro by name error:', errName);
+    }
   } catch (err) {
     console.warn('Supabase delete pro error:', err);
   }
 
-  // 2. Local storage
+  // 2. Also clean up any legacy messages in contact_messages
+  try {
+    if (cleanEmail) {
+      await supabase.from('contact_messages')
+        .delete()
+        .eq('subject', SYNC_TAG_PROFESSIONAL)
+        .eq('email', cleanEmail);
+    }
+  } catch {}
+
+  // 3. Local storage update and tracking in deleted list
   if (typeof window !== 'undefined') {
     try {
       const raw = localStorage.getItem('idea_hub_professionals');
       if (raw) {
         const list: Professional[] = JSON.parse(raw);
-        const filtered = list.filter(p => p.id !== id);
+        const filtered = list.filter(p => 
+          p.id !== id && 
+          (!cleanEmail || p.email?.toLowerCase() !== cleanEmail) &&
+          (!cleanName || p.fullName?.trim().toLowerCase() !== cleanName.toLowerCase())
+        );
         localStorage.setItem('idea_hub_professionals', JSON.stringify(filtered));
       }
-      window.dispatchEvent(new CustomEvent('idea_hub_professionals_updated', { detail: { id, deleted: true } }));
+
+      // Add to deleted registry so initial/cached records never restore
+      const delRaw = localStorage.getItem('idea_hub_deleted_pros') || '[]';
+      const delList: string[] = JSON.parse(delRaw);
+      if (id && !delList.includes(id)) delList.push(id);
+      if (cleanEmail && !delList.includes(cleanEmail)) delList.push(cleanEmail);
+      if (cleanName && !delList.includes(cleanName.toLowerCase())) delList.push(cleanName.toLowerCase());
+      localStorage.setItem('idea_hub_deleted_pros', JSON.stringify(delList));
+
+      window.dispatchEvent(new CustomEvent('idea_hub_professionals_updated', { detail: { id, email: cleanEmail, deleted: true } }));
     } catch {}
   }
 
-  // 3. Server API
+  // 4. Server API
   try {
     await fetch(`/api/professionals/${id}`, { method: 'DELETE' }).catch(() => {});
   } catch {}

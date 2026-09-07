@@ -24,7 +24,7 @@ interface AdminDashboardProps {
   onUpdateApplicationStatus?: (id: string, status: 'pending' | 'reviewed' | 'contacted' | 'rejected', feedback?: string) => Promise<void>;
   onAddProfessional: (prof: any) => Promise<void>;
   onUpdateProfessional: (id: string, updates: any) => Promise<void>;
-  onDeleteProfessional: (id: string) => Promise<void>;
+  onDeleteProfessional: (id: string, email?: string, name?: string) => Promise<void>;
   onAddProject: (project: any) => Promise<void>;
   onUpdateProject: (id: string, updates: any) => Promise<void>;
   onDeleteProject: (id: string) => Promise<void>;
@@ -57,6 +57,15 @@ export function AdminDashboard(props: AdminDashboardProps) {
   const [modalType, setModalType] = useState<'project' | 'professional' | 'job' | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
+  
+  // Custom in-app delete confirmation state (bypasses iframe-blocked window.confirm)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'project' | 'job' | 'professional' | 'client' | 'application' | 'settings';
+    id: string;
+    name?: string;
+    email?: string;
+  } | null>(null);
+  const [isExecutingDelete, setIsExecutingDelete] = useState(false);
   
   // Applications management state
   const [applicationsList, setApplicationsList] = useState<JobApplication[]>(props.applications || []);
@@ -178,8 +187,11 @@ export function AdminDashboard(props: AdminDashboardProps) {
     showToast("Settings saved successfully", "success");
   };
 
-  const handleDeleteSettingsInfo = async () => {
-    if (!window.confirm("Are you sure you want to delete and reset all platform settings?")) return;
+  const handleDeleteSettingsInfo = () => {
+    requestDelete('settings', 'all', 'All platform and website content settings');
+  };
+
+  const executeDeleteSettings = async () => {
     setIsSubmitting(true);
     const cleared = {
       professionalInviteCode: 'PRO-IDEA-2026',
@@ -568,12 +580,22 @@ export function AdminDashboard(props: AdminDashboardProps) {
     }
   };
 
-  const handleDelete = async (type: string, id: string) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+  const requestDelete = (type: 'project' | 'job' | 'professional' | 'client' | 'application' | 'settings', id: string, name?: string, email?: string) => {
+    setDeleteTarget({ type, id, name, email });
+  };
+
+  const handleDelete = (type: string, id: string, name?: string, email?: string) => {
+    requestDelete(type as any, id, name, email);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { type, id, email, name } = deleteTarget;
+    setIsExecutingDelete(true);
     try {
       if (type === 'project') await props.onDeleteProject(id);
       if (type === 'job') await props.onDeleteJob(id);
-      if (type === 'professional') await props.onDeleteProfessional(id);
+      if (type === 'professional') await props.onDeleteProfessional(id, email, name);
       if (type === 'client' && props.onDeleteClient) await props.onDeleteClient(id);
       if (type === 'application') {
         if (props.onDeleteApplication) {
@@ -586,9 +608,18 @@ export function AdminDashboard(props: AdminDashboardProps) {
           setSelectedApplication(null);
         }
       }
-      showToast('Item deleted successfully', 'success');
-    } catch (error) {
-      showToast('Failed to delete item', 'error');
+      if (type === 'settings') {
+        await executeDeleteSettings();
+        setDeleteTarget(null);
+        return;
+      }
+      showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully`, 'success');
+      setDeleteTarget(null);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      showToast(error?.message || 'Failed to delete item', 'error');
+    } finally {
+      setIsExecutingDelete(false);
     }
   };
 
@@ -1040,7 +1071,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{p.description}</td>
                         <td className="px-6 py-4 text-right">
                           <button onClick={() => openModal('project', p)} className="p-2 hover:bg-gray-100/80 rounded-lg text-gray-500 hover:text-indigo-600 transition-colors mr-2"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete('project', p.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => requestDelete('project', p.id, p.title)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 transition-colors cursor-pointer" title="Delete Project"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -1065,7 +1096,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                                 {c.createdAt && <div className="text-[11px] text-gray-400 mt-0.5">Joined: {new Date(c.createdAt).toLocaleDateString()}</div>}
                               </td>
                               <td className="px-6 py-4 text-right">
-                                <button onClick={() => handleDelete('client', c.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-500 transition-colors" title="Delete Client"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => requestDelete('client', c.id, c.fullName || c.full_name || c.email)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-500 transition-colors cursor-pointer" title="Delete Client"><Trash2 className="w-4 h-4" /></button>
                               </td>
                             </tr>
                           ))
@@ -1107,10 +1138,10 @@ export function AdminDashboard(props: AdminDashboardProps) {
                               </td>
                               <td className="px-6 py-4 text-right">
                                 {props.onViewProfessionalProfile && (
-                                  <button onClick={() => props.onViewProfessionalProfile?.(p)} className="p-2 hover:bg-indigo-50 rounded-lg text-indigo-600 transition-colors mr-2" title="View Full Profile"><Eye className="w-4 h-4" /></button>
+                                  <button onClick={() => props.onViewProfessionalProfile?.(p)} className="p-2 hover:bg-indigo-50 rounded-lg text-indigo-600 transition-colors mr-2 cursor-pointer" title="View Full Profile"><Eye className="w-4 h-4" /></button>
                                 )}
-                                <button onClick={() => openModal('professional', p)} className="p-2 hover:bg-gray-100/80 rounded-lg text-gray-500 hover:text-indigo-600 transition-colors mr-2" title="Edit Professional"><Edit className="w-4 h-4" /></button>
-                                <button onClick={() => handleDelete('professional', p.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-500 transition-colors" title="Delete Professional"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => openModal('professional', p)} className="p-2 hover:bg-gray-100/80 rounded-lg text-gray-500 hover:text-indigo-600 transition-colors mr-2 cursor-pointer" title="Edit Professional"><Edit className="w-4 h-4" /></button>
+                                <button onClick={() => requestDelete('professional', p.id, p.fullName, p.email)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-500 transition-colors cursor-pointer" title="Delete Professional"><Trash2 className="w-4 h-4" /></button>
                               </td>
                             </tr>
                           ))
@@ -1134,8 +1165,8 @@ export function AdminDashboard(props: AdminDashboardProps) {
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${j.status === 'Open' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{j.status}</span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button onClick={() => openModal('job', j)} className="p-2 hover:bg-gray-100/80 rounded-lg text-gray-500 hover:text-indigo-600 transition-colors mr-2"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete('job', j.id)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => openModal('job', j)} className="p-2 hover:bg-gray-100/80 rounded-lg text-gray-500 hover:text-indigo-600 transition-colors mr-2 cursor-pointer"><Edit className="w-4 h-4" /></button>
+                          <button onClick={() => requestDelete('job', j.id, j.title)} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 transition-colors cursor-pointer" title="Delete Job"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -1439,8 +1470,8 @@ export function AdminDashboard(props: AdminDashboardProps) {
                                     <Eye className="w-4 h-4" />
                                   </button>
                                   <button
-                                    onClick={() => handleDelete('application', app.id)}
-                                    className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+                                    onClick={() => requestDelete('application', app.id, app.fullName || app.email)}
+                                    className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
                                     title="Delete Application"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -2148,7 +2179,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
               <div className="p-5 border-t border-gray-100 bg-gray-50/90 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => handleDelete('application', selectedApplication.id)}
+                  onClick={() => requestDelete('application', selectedApplication.id, selectedApplication.fullName || selectedApplication.email)}
                   className="px-4 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" /> Delete Application
@@ -2171,6 +2202,53 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     <span>Send Update to Applicant</span>
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* In-App Delete Confirmation Modal (100% reliable inside iframes) */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-xs">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 text-center mb-1">
+                Delete {deleteTarget.type === 'settings' ? 'Settings' : deleteTarget.type.charAt(0).toUpperCase() + deleteTarget.type.slice(1)}
+              </h3>
+              <p className="text-gray-500 text-center text-sm mb-6 leading-relaxed">
+                Are you sure you want to permanently delete {deleteTarget.name ? <strong className="text-gray-900">"{deleteTarget.name}"</strong> : 'this item'}? This action will remove it from the cloud database and cannot be undone.
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={isExecutingDelete}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors text-sm cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={isExecutingDelete}
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors text-sm cursor-pointer flex items-center justify-center gap-2 shadow-sm shadow-red-200 disabled:opacity-50"
+                >
+                  {isExecutingDelete ? 'Deleting...' : 'Yes, Delete'}
+                </button>
               </div>
             </motion.div>
           </motion.div>
