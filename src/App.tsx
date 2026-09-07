@@ -37,7 +37,7 @@ import { JobsPage } from './pages/JobsPage';
 import { ContactPage } from './pages/ContactPage';
 
 import { MessageCircle } from 'lucide-react';
-import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, saveGlobalSettings, fetchGlobalSettings, generateUUID } from './lib/supabase';
+import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, saveGlobalSettings, fetchGlobalSettings, generateUUID, ensureUUID } from './lib/supabase';
 import { useToast } from './contexts/ToastContext';
 
 const parseInitialRoute = (): AppView => {
@@ -146,7 +146,8 @@ export default function App() {
         const registeredPros = await fetchRegisteredProfessionals();
         const existingIds = new Set(registeredPros.map(p => p.id));
         const existingEmails = new Set(registeredPros.map(p => p.email?.toLowerCase()).filter(Boolean));
-        const remainingInitial = initialProfessionals.filter(p => !existingIds.has(p.id) && !existingEmails.has(p.email?.toLowerCase()));
+        const existingNames = new Set(registeredPros.map(p => p.fullName?.trim().toLowerCase()).filter(Boolean));
+        const remainingInitial = initialProfessionals.filter(p => !existingIds.has(p.id) && !existingEmails.has(p.email?.toLowerCase()) && !existingNames.has(p.fullName?.trim().toLowerCase()));
         setProfessionals([...registeredPros, ...remainingInitial]);
 
         const rts = await fetchSupabaseData('ratings');
@@ -375,17 +376,28 @@ export default function App() {
 
   const handleAddProfessional = async (prof: Professional) => {
     try {
-      await saveRegisteredProfessional(prof);
-      setProfessionals(prev => [prof, ...prev.filter(p => p.id !== prof.id)]);
-      showToast("Professional saved successfully", "success");
-    } catch (err) { console.error("Error adding professional:", err); showToast("Failed to save professional", "error"); }
+      const validId = ensureUUID(prof.id);
+      const normalized = { ...prof, id: validId };
+      await saveRegisteredProfessional(normalized);
+      setProfessionals(prev => [normalized, ...prev.filter(p => p.id !== normalized.id)]);
+      showToast("Professional saved successfully to cloud database", "success");
+    } catch (err: any) {
+      console.error("Error adding professional:", err);
+      showToast(err?.message ? `Failed to save: ${err.message}` : "Failed to save professional", "error");
+    }
   };
 
   const handleUpdateProfessional = async (id: string, prof: Professional) => {
     try {
-      await saveRegisteredProfessional({ ...prof, id });
-      setProfessionals(prev => prev.map(p => p.id === id ? { ...p, ...prof } : p));
-    } catch (err) { console.error("Error updating professional:", err); showToast("Failed to update professional", "error"); }
+      const validId = ensureUUID(id);
+      const normalized = { ...prof, id: validId };
+      await saveRegisteredProfessional(normalized);
+      setProfessionals(prev => prev.map(p => p.id === id ? { ...p, ...normalized } : p));
+      showToast("Professional updated successfully in cloud database", "success");
+    } catch (err: any) {
+      console.error("Error updating professional:", err);
+      showToast(err?.message ? `Failed to update: ${err.message}` : "Failed to update professional", "error");
+    }
   };
 
   const handleDeleteClient = async (id: string) => {

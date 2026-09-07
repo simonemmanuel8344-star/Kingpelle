@@ -545,6 +545,14 @@ export function AdminDashboard(props: AdminDashboardProps) {
         if (typeof payload.skills === 'string') {
           payload.skills = payload.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
         }
+        payload.picture = extractUrl(payload.picture || '');
+        if (Array.isArray(payload.portfolioItems)) {
+          payload.portfolioItems = payload.portfolioItems.map((item: any) => ({
+            ...item,
+            id: item.id || generateUUID(),
+            imageUrl: extractUrl(item.imageUrl || '')
+          }));
+        }
         if (editingId) {
           await props.onUpdateProfessional(editingId, payload);
           showToast('Professional updated successfully', 'success');
@@ -1808,14 +1816,20 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-2">Profile Picture (URL or Upload)</label>
+                        <label className="block text-sm font-medium text-gray-500 mb-2">Profile Picture (HTML Image Link or Direct Upload)</label>
                         <div className="flex items-center gap-3">
-                          <input type="text" value={formData.picture || ''} onChange={e => setFormData({...formData, picture: extractUrl(e.target.value)})} placeholder="https://..." className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
+                          <input type="text" value={formData.picture || ''} onChange={e => setFormData({...formData, picture: extractUrl(e.target.value)})} placeholder='<img src="..." /> or https://...' className="flex-1 bg-white/90 border border-gray-200/60 rounded-xl px-5 py-3 text-gray-900 focus:border-indigo-600 outline-none" />
                           <label className="bg-gray-100/80 hover:bg-gray-200 text-gray-900 px-4 py-3 rounded-xl cursor-pointer transition-colors whitespace-nowrap">
                             Upload
                             <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'picture')} className="hidden" />
                           </label>
                         </div>
+                        {formData.picture && (
+                          <div className="mt-2 flex items-center gap-3">
+                            <img src={extractUrl(formData.picture)} alt="Preview" className="w-10 h-10 rounded-full object-cover border border-gray-200" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                            <span className="text-xs text-gray-400 truncate max-w-xs">{formData.picture.startsWith('data:') ? 'Direct image uploaded' : formData.picture}</span>
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -1861,16 +1875,18 @@ export function AdminDashboard(props: AdminDashboardProps) {
                                 }} className="flex-1 bg-white border border-gray-200/60 rounded-lg px-3 py-2 text-sm focus:border-indigo-600 outline-none" />
                                 <label className="bg-white border border-gray-200/60 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg cursor-pointer transition-colors whitespace-nowrap text-sm font-medium">
                                   Upload
-                                  <input type="file" accept="image/*" onChange={(e) => {
+                                  <input type="file" accept="image/*" onChange={async (e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
-                                      const reader = new FileReader();
-                                      reader.onloadend = () => {
+                                      try {
+                                        const base64 = await fileToBase64(file);
                                         const newItems = [...formData.portfolioItems];
-                                        newItems[idx].imageUrl = reader.result as string;
+                                        newItems[idx].imageUrl = base64;
                                         setFormData({...formData, portfolioItems: newItems});
-                                      };
-                                      reader.readAsDataURL(file);
+                                        showToast('Portfolio image uploaded', 'success');
+                                      } catch {
+                                        showToast('Failed to process image', 'error');
+                                      }
                                     }
                                   }} className="hidden" />
                                 </label>

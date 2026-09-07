@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { extractUrl } from './urlUtils';
 import { ServiceOrder, ContactMessage, ChatSession, ChatMessage, UserProfile, Professional, JobApplication } from '../types';
 
 const supabaseUrl = ((typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_URL) || 'https://cndijjjhyczocmphedmp.supabase.co').replace(/\/rest\/v1\/?$/, '');
@@ -409,31 +410,72 @@ export async function deleteRegisteredClient(id: string, email?: string): Promis
 
 // --- PROFESSIONALS PERSISTENCE ---
 
+export function isValidUUID(id?: string | null): boolean {
+  if (!id || typeof id !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+export function ensureUUID(id?: string | null): string {
+  if (id && isValidUUID(id)) return id;
+  return generateUUID();
+}
+
 export async function saveRegisteredProfessional(prof: Professional): Promise<void> {
+  const validId = ensureUUID(prof.id);
   const cleanProf: Professional = {
     ...prof,
-    id: prof.id,
+    id: validId,
     fullName: (prof.fullName || "").trim(),
     email: (prof.email || "").trim().toLowerCase(),
-    phone: prof.phone || '',
-    jobCategory: prof.jobCategory || 'Creative Specialist',
-    skills: Array.isArray(prof.skills) ? prof.skills : [],
-    picture: prof.picture || '',
-    bio: prof.bio || 'Verified Professional at iDEA Creation Hub',
-    location: prof.location || 'Nigeria & Remote',
-    yearsOfExperience: prof.yearsOfExperience || '3+ Years',
-    portfolioItems: prof.portfolioItems || [],
+    phone: (prof.phone || '').trim(),
+    jobCategory: (prof.jobCategory || 'Creative Specialist').trim(),
+    skills: Array.isArray(prof.skills) && prof.skills.length > 0 ? prof.skills : ['Creative Specialist'],
+    picture: extractUrl(prof.picture || ''),
+    bio: (prof.bio || 'Verified Professional at iDEA Creation Hub').trim(),
+    location: (prof.location || 'Nigeria & Remote').trim(),
+    yearsOfExperience: (prof.yearsOfExperience || '3+ Years').toString().trim(),
+    portfolioItems: (prof.portfolioItems || []).map(item => ({
+      ...item,
+      id: ensureUUID(item.id),
+      imageUrl: extractUrl(item.imageUrl || '')
+    })),
     rating: prof.rating ?? 5.0,
     ratingCount: prof.ratingCount ?? 1,
     createdAt: prof.createdAt || new Date().toISOString()
   };
 
-  // 1. Sync to local storage
+  // 1. Direct Supabase professionals table upsert (Primary live cloud database source of truth)
+  const dbPayload = {
+    id: cleanProf.id,
+    full_name: cleanProf.fullName,
+    email: cleanProf.email,
+    phone: cleanProf.phone || '',
+    job_category: cleanProf.jobCategory,
+    skills: cleanProf.skills,
+    picture: cleanProf.picture || '',
+    bio: cleanProf.bio || '',
+    location: cleanProf.location || '',
+    years_of_experience: cleanProf.yearsOfExperience || '',
+    portfolio_items: cleanProf.portfolioItems || [],
+    rating: cleanProf.rating || 5.0,
+    rating_count: cleanProf.ratingCount || 1,
+    is_verified: true,
+    created_at: cleanProf.createdAt,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error: upsertErr } = await supabase.from('professionals').upsert([dbPayload]);
+  if (upsertErr) {
+    console.error('Direct professionals upsert error:', upsertErr);
+    throw new Error(upsertErr.message);
+  }
+
+  // 2. Sync to local storage for instant UI responsiveness
   if (typeof window !== 'undefined') {
     try {
       const raw = localStorage.getItem('idea_hub_professionals');
       const list: Professional[] = raw ? JSON.parse(raw) : [];
-      const idx = list.findIndex(p => p.id === cleanProf.id || (p.email && p.email.toLowerCase() === cleanProf.email));
+      const idx = list.findIndex(p => p.id === cleanProf.id || (p.email && cleanProf.email && p.email.toLowerCase() === cleanProf.email));
       if (idx >= 0) {
         list[idx] = { ...list[idx], ...cleanProf };
       } else {
@@ -449,48 +491,7 @@ export async function saveRegisteredProfessional(prof: Professional): Promise<vo
     } catch {}
   }
 
-  // 2. Sync to Supabase unrestricted cloud sync bus
-  try {
-    await supabase.from('contact_messages').insert([{
-      name: cleanProf.fullName,
-      email: cleanProf.email,
-      phone: cleanProf.phone || null,
-      subject: SYNC_TAG_PROFESSIONAL,
-      message: JSON.stringify(cleanProf)
-    }]);
-  } catch (err) {
-    console.warn('Cloud sync pro error:', err);
-  }
-
-  // 3. Attempt direct professionals table upsert
-  try {
-    const dbPayload = {
-      id: cleanProf.id,
-      full_name: cleanProf.fullName,
-      email: cleanProf.email,
-      phone: cleanProf.phone || '',
-      job_category: cleanProf.jobCategory,
-      skills: cleanProf.skills,
-      picture: cleanProf.picture || '',
-      bio: cleanProf.bio || '',
-      location: cleanProf.location || '',
-      years_of_experience: cleanProf.yearsOfExperience || '',
-      portfolio_items: cleanProf.portfolioItems || [],
-      rating: cleanProf.rating || 5.0,
-      rating_count: cleanProf.ratingCount || 1,
-      created_at: cleanProf.createdAt
-    };
-    const { error: upsertErr } = await supabase.from('professionals').upsert([dbPayload]);
-    if (upsertErr) {
-      console.warn('Direct professionals upsert error:', upsertErr);
-      throw new Error(upsertErr.message);
-    }
-  } catch (e) {
-    console.warn('Professional db sync exception:', e);
-    throw e;
-  }
-
-  // 4. Server API sync if available
+  // 3. Server API sync if available
   try {
     await fetch('/api/professionals', {
       method: 'POST',
@@ -503,7 +504,43 @@ export async function saveRegisteredProfessional(prof: Professional): Promise<vo
 export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
   const map = new Map<string, Professional>();
 
-  // 1. Read local storage
+  // 1. PRIMARY SOURCE OF TRUTH: Direct query to Supabase 'professionals' cloud table
+  try {
+    const { data: dbPros, error: dbErr } = await supabase
+      .from('professionals')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!dbErr && dbPros && Array.isArray(dbPros)) {
+      for (const p of dbPros) {
+        const key = p.id || p.email?.toLowerCase();
+        if (key) {
+          map.set(key, {
+            id: p.id,
+            fullName: p.full_name || p.fullName || 'Professional',
+            email: p.email || '',
+            phone: p.phone || '',
+            jobCategory: p.job_category || p.jobCategory || 'Creative Specialist',
+            skills: Array.isArray(p.skills) ? p.skills : [],
+            picture: extractUrl(p.picture || ''),
+            bio: p.bio || 'Verified Professional at iDEA Creation Hub',
+            location: p.location || 'Nigeria & Remote',
+            yearsOfExperience: p.years_of_experience || p.yearsOfExperience || '3+ Years',
+            portfolioItems: (Array.isArray(p.portfolio_items) && p.portfolio_items.length > 0)
+              ? p.portfolio_items
+              : (Array.isArray(p.portfolioItems) && p.portfolioItems.length > 0 ? p.portfolioItems : []),
+            rating: p.rating ?? 5.0,
+            ratingCount: p.rating_count ?? 1,
+            createdAt: p.created_at || new Date().toISOString()
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Direct professionals DB fetch error:', err);
+  }
+
+  // 2. Supplement from local storage (only fill in missing items that haven't synced yet)
   if (typeof window !== 'undefined') {
     try {
       const raw = localStorage.getItem('idea_hub_professionals');
@@ -511,7 +548,9 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
         const parsed: Professional[] = JSON.parse(raw);
         for (const p of parsed) {
           const key = p.id || p.email?.toLowerCase();
-          if (key) map.set(key, p);
+          if (key && !map.has(key)) {
+            map.set(key, p);
+          }
         }
       }
     } catch (e) {
@@ -519,7 +558,7 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
     }
   }
 
-  // 2. Read Server API
+  // 3. Supplement from Server API if available
   try {
     const res = await fetch('/api/professionals');
     if (res.ok) {
@@ -527,69 +566,9 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
       if (Array.isArray(serverPros)) {
         for (const p of serverPros) {
           const key = p.id || p.email?.toLowerCase();
-          if (key) map.set(key, p);
-        }
-      }
-    }
-  } catch {}
-
-  // 3. Read Cloud Sync from contact_messages
-  try {
-    const { data, error } = await supabase
-      .from('contact_messages')
-      .select('*')
-      .eq('subject', SYNC_TAG_PROFESSIONAL)
-      .order('created_at', { ascending: true });
-
-    if (!error && data && Array.isArray(data)) {
-      for (const row of data) {
-        try {
-          const parsed: Professional = JSON.parse(row.message);
-          const key = parsed.id || parsed.email?.toLowerCase();
-          if (key) {
-            const existing = map.get(key);
-            if (!existing || new Date(row.created_at).getTime() >= new Date(existing.createdAt || 0).getTime()) {
-              map.set(key, {
-                ...parsed,
-                picture: parsed.picture || existing?.picture || '',
-                createdAt: parsed.createdAt || row.created_at
-              });
-            }
+          if (key && !map.has(key)) {
+            map.set(key, p);
           }
-        } catch {}
-      }
-    }
-  } catch (err) {
-    console.warn('Cloud sync pro fetch error:', err);
-  }
-
-  // 4. Read Supabase professionals table
-  try {
-    const { data: dbPros } = await supabase.from('professionals').select('*');
-    if (dbPros && Array.isArray(dbPros)) {
-      for (const p of dbPros) {
-        const key = p.id || p.email?.toLowerCase();
-        if (key) {
-          const existing = map.get(key);
-          const mapped: Professional = {
-            id: p.id,
-            fullName: p.full_name || p.fullName || 'Professional',
-            email: p.email || '',
-            phone: p.phone || '',
-            jobCategory: p.job_category || p.jobCategory || 'Creative Specialist',
-            skills: Array.isArray(p.skills) ? p.skills : [],
-            picture: p.picture || existing?.picture || '',
-            bio: p.bio || 'Verified Professional at iDEA Creation Hub',
-            location: p.location || 'Nigeria & Remote',
-            yearsOfExperience: p.years_of_experience || p.yearsOfExperience || '3+ Years',
-            portfolioItems: (Array.isArray(p.portfolio_items) && p.portfolio_items.length > 0)
-              ? p.portfolio_items
-              : (Array.isArray(p.portfolioItems) && p.portfolioItems.length > 0 ? p.portfolioItems : (existing?.portfolioItems || [])),
-            rating: p.rating ?? 5.0,
-            ratingCount: p.rating_count ?? 1,
-            createdAt: p.created_at || new Date().toISOString()
-          };
-          map.set(key, mapped);
         }
       }
     }
@@ -606,7 +585,14 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
 }
 
 export async function deleteRegisteredProfessional(id: string): Promise<void> {
-  // Local storage
+  // 1. Delete from Supabase professionals table
+  try {
+    await supabase.from('professionals').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Supabase delete pro error:', err);
+  }
+
+  // 2. Local storage
   if (typeof window !== 'undefined') {
     try {
       const raw = localStorage.getItem('idea_hub_professionals');
@@ -619,14 +605,9 @@ export async function deleteRegisteredProfessional(id: string): Promise<void> {
     } catch {}
   }
 
-  // Server API
+  // 3. Server API
   try {
     await fetch(`/api/professionals/${id}`, { method: 'DELETE' }).catch(() => {});
-  } catch {}
-
-  // Supabase table
-  try {
-    await supabase.from('professionals').delete().eq('id', id);
   } catch {}
 }
 
