@@ -1,12 +1,13 @@
 import { extractUrl } from "../lib/urlUtils";
+import { fileToBase64 } from '../lib/fileUtils';
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase, fetchChatSessions, fetchChatMessages, saveChatMessage, saveChatSession, getActiveUser, getStoredUser, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, updateJobApplicationInternalStatus, generateUUID } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Users, User as UserIcon, Briefcase, FileCheck, MessageSquare, Settings, LogOut, 
+import {
   Plus, Edit, Trash2, LayoutDashboard, Shield, Lock, Send, X, Image as ImageIcon,
   Eye, EyeOff, ArrowLeft, Mail, FileText, Download, ExternalLink, Phone, Calendar,
-  CheckCircle2, ShieldCheck, Clock, AlertCircle, Filter, Search, Copy, Save, RefreshCw, Check
+  CheckCircle2, ShieldCheck, Clock, AlertCircle, Filter, Search, Copy, Save, RefreshCw, Check,
+  Users, User as UserIcon, Briefcase, FileCheck, MessageSquare, Settings, LogOut
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Professional, PortfolioItem, JobPosting as Job, JobApplication, ChatSession, ChatMessage } from '../types';
@@ -490,34 +491,29 @@ export function AdminDashboard(props: AdminDashboardProps) {
     setFormData({});
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Use Base64 encoding to support direct uploads from any device without requiring a pre-configured storage bucket
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setFormData({ ...formData, [fieldName]: event.target.result as string });
-        showToast('Image uploaded & attached', 'success');
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const base64Str = await fileToBase64(file);
+      setFormData({ ...formData, [fieldName]: base64Str });
+      showToast('Image uploaded & attached', 'success');
+    } catch (err) {
+      showToast('Failed to process image', 'error');
+    }
   };
 
-  const handleSettingsUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'hero' | 'logo') => {
+  const handleSettingsUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'hero' | 'logo') => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-         if (type === 'hero') setSettingsForm(prev => ({ ...prev, heroImageUrl: event.target.result as string }));
-         if (type === 'logo') setSettingsForm(prev => ({ ...prev, logoUrl: event.target.result as string }));
-         showToast('Image uploaded (Click Save to apply)', 'info');
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const base64Str = await fileToBase64(file);
+      if (type === 'hero') setSettingsForm(prev => ({ ...prev, heroImageUrl: base64Str }));
+      if (type === 'logo') setSettingsForm(prev => ({ ...prev, logoUrl: base64Str }));
+      showToast('Image uploaded (Click Save to apply)', 'info');
+    } catch (err) {
+      showToast('Failed to process image', 'error');
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {

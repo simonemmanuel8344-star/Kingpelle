@@ -468,13 +468,13 @@ export async function saveRegisteredProfessional(prof: Professional): Promise<vo
       id: cleanProf.id,
       full_name: cleanProf.fullName,
       email: cleanProf.email,
-      phone: cleanProf.phone || null,
+      phone: cleanProf.phone || '',
       job_category: cleanProf.jobCategory,
       skills: cleanProf.skills,
-      picture: cleanProf.picture || null,
-      bio: cleanProf.bio,
-      location: cleanProf.location,
-      years_of_experience: cleanProf.yearsOfExperience,
+      picture: cleanProf.picture || '',
+      bio: cleanProf.bio || '',
+      location: cleanProf.location || '',
+      years_of_experience: cleanProf.yearsOfExperience || '',
       portfolio_items: cleanProf.portfolioItems || [],
       rating: cleanProf.rating || 5.0,
       rating_count: cleanProf.ratingCount || 1,
@@ -483,9 +483,11 @@ export async function saveRegisteredProfessional(prof: Professional): Promise<vo
     const { error: upsertErr } = await supabase.from('professionals').upsert([dbPayload]);
     if (upsertErr) {
       console.warn('Direct professionals upsert error:', upsertErr);
+      throw new Error(upsertErr.message);
     }
   } catch (e) {
     console.warn('Professional db sync exception:', e);
+    throw e;
   }
 
   // 4. Server API sync if available
