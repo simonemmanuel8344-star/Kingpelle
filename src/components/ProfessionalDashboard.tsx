@@ -217,7 +217,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
       return;
     }
     const item: PortfolioItem = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random().toString(36).substring(7),
       title: newProject.title.trim(),
       category: newProject.category.trim() || editForm.jobCategory,
       description: newProject.description.trim(),

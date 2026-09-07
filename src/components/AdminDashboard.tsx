@@ -1,3 +1,4 @@
+import { extractUrl } from "../lib/urlUtils";
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase, fetchChatSessions, fetchChatMessages, saveChatMessage, saveChatSession, getActiveUser, getStoredUser, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, updateJobApplicationInternalStatus } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
@@ -528,7 +529,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
           await props.onUpdateProject(editingId, formData);
           showToast('Project updated successfully', 'success');
         } else {
-          await props.onAddProject({ ...formData, id: Date.now().toString() });
+          await props.onAddProject({ ...formData, id: Date.now().toString() + Math.random().toString(36).substring(7) });
           showToast('Project added successfully', 'success');
         }
       } else if (modalType === 'job') {
@@ -540,7 +541,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
           await props.onUpdateJob(editingId, payload);
           showToast('Job updated successfully', 'success');
         } else {
-          await props.onAddJob({ ...payload, id: Date.now().toString(), postedAt: new Date().toISOString() });
+          await props.onAddJob({ ...payload, id: Date.now().toString() + Math.random().toString(36).substring(7), postedAt: new Date().toISOString() });
           showToast('Job added successfully', 'success');
         }
       } else if (modalType === 'professional') {
@@ -552,7 +553,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
           await props.onUpdateProfessional(editingId, payload);
           showToast('Professional updated successfully', 'success');
         } else {
-          await props.onAddProfessional({ ...payload, id: Date.now().toString(), joinedAt: new Date().toISOString() });
+          await props.onAddProfessional({ ...payload, id: Date.now().toString() + Math.random().toString(36).substring(7), joinedAt: new Date().toISOString() });
           showToast('Professional added successfully', 'success');
         }
       }
@@ -1834,7 +1835,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       <div className="border-t border-gray-200/60 pt-4 mt-2">
                         <div className="flex items-center justify-between mb-3">
                           <label className="block text-sm font-medium text-gray-900">Showcase Portfolio</label>
-                          <button type="button" onClick={() => setFormData({...formData, portfolioItems: [...(formData.portfolioItems || []), { id: Date.now().toString(), title: '', imageUrl: '' }]})} className="text-xs font-semibold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
+                          <button type="button" onClick={() => setFormData({...formData, portfolioItems: [...(formData.portfolioItems || []), { id: Date.now().toString() + Math.random().toString(36).substring(7), title: '', imageUrl: '' }]})} className="text-xs font-semibold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
                             + Add Portfolio Item
                           </button>
                         </div>
