@@ -410,15 +410,31 @@ export default function App() {
 
   const handleAddProject = async (proj: Project) => {
     try {
-      await insertSupabaseData('projects', { ...proj, created_at: new Date().toISOString() });
-      setProjects(prev => [...prev, proj]);
+      const projPayload = {
+        id: proj.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'p_' + Date.now()),
+        title: proj.title,
+        description: proj.description || '',
+        image_url: proj.imageUrl || (proj as any).image_url || '',
+        project_url: proj.projectUrl || (proj as any).project_url || '',
+        category: proj.category || 'Design',
+        created_at: new Date().toISOString()
+      };
+      await insertSupabaseData('projects', projPayload);
+      setProjects(prev => [...prev, { ...proj, id: projPayload.id, imageUrl: projPayload.image_url, projectUrl: projPayload.project_url }]);
       showToast("Project added successfully", "success");
     } catch (err) { console.error("Error adding project:", err); showToast("Failed to save project", "error"); }
   };
 
   const handleUpdateProject = async (id: string, proj: Project) => {
     try {
-      await updateSupabaseData('projects', id, proj);
+      const updatePayload = {
+        title: proj.title,
+        description: proj.description,
+        image_url: proj.imageUrl || (proj as any).image_url,
+        project_url: proj.projectUrl || (proj as any).project_url,
+        category: proj.category
+      };
+      await updateSupabaseData('projects', id, updatePayload);
       setProjects(prev => prev.map(p => p.id === id ? { ...p, ...proj } : p));
       showToast("Project updated successfully", "success");
     } catch (err) { console.error("Error updating project:", err); showToast("Failed to update project", "error"); }
@@ -434,17 +450,37 @@ export default function App() {
 
   const handleAddJob = async (job: JobPosting) => {
     try {
-      const { jobType, logoUrl, ...rest } = job;
-      await insertSupabaseData('job_postings', { ...rest, job_type: jobType, logo_url: logoUrl, created_at: new Date().toISOString() });
-      setJobs(prev => [...prev, job]);
+      const { jobType, logoUrl, requirements, ...rest } = job as any;
+      const jobPayload = {
+        ...rest,
+        id: job.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'j_' + Date.now()),
+        job_type: jobType || job.jobType || 'Remote',
+        logo_url: logoUrl || job.logoUrl || '',
+        location: job.location || 'Remote',
+        salary: job.salary || '',
+        status: job.status || 'active',
+        requirements: Array.isArray(requirements) ? requirements : [],
+        created_at: new Date().toISOString()
+      };
+      await insertSupabaseData('job_postings', jobPayload);
+      setJobs(prev => [...prev, { ...job, id: jobPayload.id }]);
       showToast("Job posted successfully", "success");
     } catch (err) { console.error("Error adding job:", err); showToast("Failed to save job", "error"); }
   };
 
   const handleUpdateJob = async (id: string, job: JobPosting) => {
     try {
-      const { jobType, logoUrl, ...rest } = job;
-      await updateSupabaseData('job_postings', id, { ...rest, job_type: jobType, logo_url: logoUrl });
+      const { jobType, logoUrl, requirements, ...rest } = job as any;
+      const updatePayload = {
+        ...rest,
+        job_type: jobType || job.jobType || 'Remote',
+        logo_url: logoUrl || job.logoUrl || '',
+        location: job.location || 'Remote',
+        salary: job.salary || '',
+        status: job.status || 'active',
+        requirements: Array.isArray(requirements) ? requirements : []
+      };
+      await updateSupabaseData('job_postings', id, updatePayload);
       setJobs(prev => prev.map(p => p.id === id ? { ...p, ...job } : p));
       showToast("Job updated successfully", "success");
     } catch (err) { console.error("Error updating job:", err); showToast("Failed to update job", "error"); }

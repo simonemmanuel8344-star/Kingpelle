@@ -51,6 +51,8 @@ export interface Project {
   title: string;
   imageUrl: string;
   category: string;
+  description?: string;
+  projectUrl?: string;
 }
 
 export interface JobPosting {

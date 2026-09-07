@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { ServiceOrder, ContactMessage, ChatSession, ChatMessage, UserProfile, Professional, JobApplication } from '../types';
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || 'https://cndijjjhyczocmphedmp.supabase.co').replace(/\/rest\/v1\/?$/, '');
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2rwwPCeO4JumkrEZGQ0qpw_g25Opsmq';
+const supabaseUrl = ((typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_URL) || 'https://cndijjjhyczocmphedmp.supabase.co').replace(/\/rest\/v1\/?$/, '');
+const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_ANON_KEY) || 'sb_publishable_2rwwPCeO4JumkrEZGQ0qpw_g25Opsmq';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -477,10 +477,18 @@ export async function saveRegisteredProfessional(prof: Professional): Promise<vo
       bio: cleanProf.bio,
       location: cleanProf.location,
       years_of_experience: cleanProf.yearsOfExperience,
+      portfolio_items: cleanProf.portfolioItems || [],
+      rating: cleanProf.rating || 5.0,
+      rating_count: cleanProf.ratingCount || 1,
       created_at: cleanProf.createdAt
     };
-    await supabase.from('professionals').upsert([dbPayload]);
-  } catch {}
+    const { error: upsertErr } = await supabase.from('professionals').upsert([dbPayload]);
+    if (upsertErr) {
+      console.warn('Direct professionals upsert error:', upsertErr);
+    }
+  } catch (e) {
+    console.warn('Professional db sync exception:', e);
+  }
 
   // 4. Server API sync if available
   try {
@@ -574,12 +582,14 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
             bio: p.bio || 'Verified Professional at iDEA Creation Hub',
             location: p.location || 'Nigeria & Remote',
             yearsOfExperience: p.years_of_experience || p.yearsOfExperience || '3+ Years',
-            portfolioItems: existing?.portfolioItems || [],
+            portfolioItems: (Array.isArray(p.portfolio_items) && p.portfolio_items.length > 0)
+              ? p.portfolio_items
+              : (Array.isArray(p.portfolioItems) && p.portfolioItems.length > 0 ? p.portfolioItems : (existing?.portfolioItems || [])),
             rating: p.rating ?? 5.0,
             ratingCount: p.rating_count ?? 1,
             createdAt: p.created_at || new Date().toISOString()
           };
-          map.set(key, existing ? { ...mapped, ...existing, portfolioItems: existing.portfolioItems || mapped.portfolioItems } : mapped);
+          map.set(key, existing ? { ...mapped, ...existing, portfolioItems: mapped.portfolioItems.length > 0 ? mapped.portfolioItems : (existing.portfolioItems || []) } : mapped);
         }
       }
     }
@@ -1675,6 +1685,27 @@ export async function fetchClientOrders(clientId: string, email?: string): Promi
 export const SYNC_TAG_SETTINGS = 'IDEA_SYNC:settings';
 
 export async function saveGlobalSettings(settings: any) {
+  // 1. Direct settings table upsert
+  try {
+    const payload = {
+      id: 'global',
+      logo_url: settings.logoUrl || settings.logo_url || null,
+      hero_image_url: settings.heroImageUrl || settings.hero_image_url || null,
+      professional_invite_code: settings.professionalInviteCode || settings.professional_invite_code || 'IDEA2026',
+      logoUrl: settings.logoUrl || settings.logo_url || null,
+      heroImageUrl: settings.heroImageUrl || settings.hero_image_url || null,
+      professionalInviteCode: settings.professionalInviteCode || settings.professional_invite_code || 'IDEA2026',
+      updated_at: new Date().toISOString()
+    };
+    const { error: settsErr } = await supabase.from('settings').upsert([payload]);
+    if (settsErr) {
+      console.warn('Direct settings table error:', settsErr);
+    }
+  } catch (err) {
+    console.warn('Direct settings save error:', err);
+  }
+
+  // 2. Backup to contact_messages
   try {
     await supabase.from('contact_messages').insert([{
       name: 'Global Settings',
@@ -1683,11 +1714,26 @@ export async function saveGlobalSettings(settings: any) {
       message: JSON.stringify(settings)
     }]);
   } catch (err) {
-    console.warn('Sync settings error:', err);
+    console.warn('Sync settings backup error:', err);
   }
 }
 
 export async function fetchGlobalSettings(): Promise<any | null> {
+  // 1. Try reading directly from settings table
+  try {
+    const { data: setts, error } = await supabase.from('settings').select('*').eq('id', 'global').single();
+    if (setts && !error) {
+      return {
+        logoUrl: setts.logoUrl || setts.logo_url,
+        heroImageUrl: setts.heroImageUrl || setts.hero_image_url,
+        professionalInviteCode: setts.professionalInviteCode || setts.professional_invite_code
+      };
+    }
+  } catch (err) {
+    console.warn('Direct settings fetch error:', err);
+  }
+
+  // 2. Fallback to contact_messages backup
   try {
     const { data } = await supabase
       .from('contact_messages')
