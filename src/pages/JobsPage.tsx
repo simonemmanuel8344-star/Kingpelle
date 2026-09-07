@@ -239,7 +239,7 @@ export function JobsPage({ jobs, onSubmitApplication, onNavigate }: JobsPageProp
 
                     <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden bg-gray-50 flex items-center justify-center shrink-0 border border-gray-200">
                       {job.logoUrl ? (
-                        <img src={job.logoUrl} alt={job.company} className="w-full h-full object-cover" />
+                        <img src={job.logoUrl || undefined} alt={job.company} className="w-full h-full object-cover" />
                       ) : (
                         <Briefcase className="text-indigo-600 w-6 h-6" />
                       )}

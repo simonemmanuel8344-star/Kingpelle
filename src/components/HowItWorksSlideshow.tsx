@@ -95,7 +95,7 @@ export function HowItWorksSlideshow({ onOpenOrderModal }: HowItWorksSlideshowPro
               <div className="relative group">
                 <div className="w-[200px] h-[200px] rounded-2xl overflow-hidden border-2 border-indigo-600/40 shadow-[0_0_30px_rgba(245,158,11,0.2)] bg-white/95 relative flex items-center justify-center">
                   <img
-                    src={slide.imageUrl}
+                    src={slide.imageUrl || undefined}
                     alt={slide.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />

@@ -97,7 +97,7 @@ export function Navbar({ currentView, setView, logoUrl, onLoginClick, currentUse
             onClick={() => handleNavClick('home')}
           >
             {logoUrl ? (
-              <img src={logoUrl} alt="iDEA Creation Hub Logo" className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-cover shadow-sm shrink-0" />
+              <img src={logoUrl || undefined} alt="iDEA Creation Hub Logo" className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-cover shadow-sm shrink-0" />
             ) : (
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
                 <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />

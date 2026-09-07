@@ -128,7 +128,7 @@ export function JobsBoard({ jobs, onSubmitApplication }: Props) {
                     </div>
                     <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white/60 flex items-center justify-center shrink-0 border border-gray-200/60">
                       {job.logoUrl ? (
-                        <img src={job.logoUrl} alt={job.company} className="w-full h-full object-cover bg-white" />
+                        <img src={job.logoUrl || undefined} alt={job.company} className="w-full h-full object-cover bg-white" />
                       ) : (
                         <Briefcase className="text-indigo-600 w-5 h-5 sm:w-6 sm:h-6" />
                       )}
@@ -244,7 +244,7 @@ export function JobsBoard({ jobs, onSubmitApplication }: Props) {
                       )}
                       {form.photoUrl && (
                         <div className="flex items-center gap-2 mt-2">
-                          <img src={form.photoUrl} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-indigo-600/40" />
+                          <img src={form.photoUrl || undefined} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-indigo-600/40" />
                           <span className="text-xs text-green-400 flex items-center gap-1">
                             <CheckCircle className="w-3.5 h-3.5" /> Photo attached
                           </span>

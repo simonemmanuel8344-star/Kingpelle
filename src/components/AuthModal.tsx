@@ -458,7 +458,7 @@ export function AuthModal({ onClose, defaultTab = 'client', onAdminClick, onSucc
                   <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">Profile Photo</label>
                   <div className="flex items-center gap-3">
                     {picturePreview && (
-                      <img src={picturePreview} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-indigo-600 shrink-0" />
+                      <img src={picturePreview || undefined} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-indigo-600 shrink-0" />
                     )}
                     <input 
                       type="file" 

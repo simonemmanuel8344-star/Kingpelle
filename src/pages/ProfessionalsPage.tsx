@@ -189,7 +189,7 @@ export function ProfessionalsPage({
                   <div className="w-full flex justify-center pt-7 px-5">
                     <div className="w-[280px] h-[280px] max-w-full aspect-square overflow-hidden bg-gray-50 relative rounded-2xl border border-gray-200 shadow-sm shrink-0 group-hover:scale-[1.02] transition-transform duration-300">
                       <img 
-                        src={prof.picture} 
+                        src={prof.picture || undefined} 
                         alt={prof.fullName} 
                         className="w-full h-full object-cover"
                         loading="lazy"

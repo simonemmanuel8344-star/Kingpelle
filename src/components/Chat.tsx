@@ -218,7 +218,7 @@ export function Chat({ professionalId, professionalName, professionalPicture, ch
           
           <div className="w-11 h-11 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 shadow-xs">
             {displayPicture ? (
-              <img src={displayPicture} alt={displayName} className="w-full h-full object-cover" />
+              <img src={displayPicture || undefined} alt={displayName} className="w-full h-full object-cover" />
             ) : (
               <span className="text-indigo-600 font-bold text-lg">{displayName.charAt(0)}</span>
             )}

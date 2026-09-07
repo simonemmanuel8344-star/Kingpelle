@@ -16,7 +16,7 @@ export function Footer({ logoUrl, onNavigate, onOrderService }: FooterProps) {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               {logoUrl ? (
-                <img src={logoUrl} alt="iDEA Creation Hub Logo" className="w-9 h-9 rounded-xl object-cover shadow-sm shrink-0" />
+                <img src={logoUrl || undefined} alt="iDEA Creation Hub Logo" className="w-9 h-9 rounded-xl object-cover shadow-sm shrink-0" />
               ) : (
                 <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
                   i

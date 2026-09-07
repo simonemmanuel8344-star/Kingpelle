@@ -213,7 +213,7 @@ export function GlobalSearch({ onSelectProfessional, onOpenOrderModal }: GlobalS
                         >
                           <div className="flex items-center gap-3">
                             {proj.image_url ? (
-                              <img src={proj.image_url} alt={proj.title} className="w-12 h-10 rounded-lg object-cover" />
+                              <img src={proj.image_url || undefined} alt={proj.title} className="w-12 h-10 rounded-lg object-cover" />
                             ) : (
                               <div className="w-12 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                                 <Briefcase className="w-5 h-5" />

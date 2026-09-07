@@ -515,7 +515,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
             <label className="block text-xs font-medium text-gray-600 mb-1">Profile Picture</label>
             <div className="flex items-center gap-4">
               {editForm.picture && (
-                <img src={editForm.picture} alt="Preview" className="w-14 h-14 rounded-xl object-cover border border-gray-300" />
+                <img src={editForm.picture || undefined} alt="Preview" className="w-14 h-14 rounded-xl object-cover border border-gray-300" />
               )}
               <label className="cursor-pointer px-4 py-2 bg-gray-100/80 hover:bg-gray-200 text-gray-900 rounded-xl text-xs font-medium border border-gray-200/60 flex items-center gap-2">
                 <ImageIcon className="w-4 h-4 text-indigo-600" />
@@ -651,7 +651,7 @@ export function ProfessionalDashboard({ onBackToHome, onViewMyProfile }: Profess
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {editForm.portfolioItems.map((item) => (
                   <div key={item.id} className="p-3 bg-white/60 border border-gray-200/60 rounded-xl flex items-center justify-between gap-3">
-                    <img src={item.imageUrl} alt={item.title} className="w-12 h-12 rounded-lg object-cover bg-white/60 shrink-0" />
+                    <img src={item.imageUrl || undefined} alt={item.title} className="w-12 h-12 rounded-lg object-cover bg-white/60 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <h5 className="text-xs font-bold text-gray-900 truncate">{item.title}</h5>
                       <span className="text-[10px] text-indigo-600 uppercase tracking-wider">{item.category}</span>

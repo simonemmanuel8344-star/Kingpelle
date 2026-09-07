@@ -1,6 +1,6 @@
 import { extractUrl } from "../lib/urlUtils";
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase, fetchChatSessions, fetchChatMessages, saveChatMessage, saveChatSession, getActiveUser, getStoredUser, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, updateJobApplicationInternalStatus } from '../lib/supabase';
+import { supabase, fetchChatSessions, fetchChatMessages, saveChatMessage, saveChatSession, getActiveUser, getStoredUser, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, updateJobApplicationInternalStatus, generateUUID } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, User as UserIcon, Briefcase, FileCheck, MessageSquare, Settings, LogOut, 
@@ -529,7 +529,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
           await props.onUpdateProject(editingId, formData);
           showToast('Project updated successfully', 'success');
         } else {
-          await props.onAddProject({ ...formData, id: Date.now().toString() + Math.random().toString(36).substring(7) });
+          await props.onAddProject({ ...formData, id: generateUUID() });
           showToast('Project added successfully', 'success');
         }
       } else if (modalType === 'job') {
@@ -541,7 +541,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
           await props.onUpdateJob(editingId, payload);
           showToast('Job updated successfully', 'success');
         } else {
-          await props.onAddJob({ ...payload, id: Date.now().toString() + Math.random().toString(36).substring(7), postedAt: new Date().toISOString() });
+          await props.onAddJob({ ...payload, id: generateUUID(), postedAt: new Date().toISOString() });
           showToast('Job added successfully', 'success');
         }
       } else if (modalType === 'professional') {
@@ -553,7 +553,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
           await props.onUpdateProfessional(editingId, payload);
           showToast('Professional updated successfully', 'success');
         } else {
-          await props.onAddProfessional({ ...payload, id: Date.now().toString() + Math.random().toString(36).substring(7), joinedAt: new Date().toISOString() });
+          await props.onAddProfessional({ ...payload, id: generateUUID(), joinedAt: new Date().toISOString() });
           showToast('Professional added successfully', 'success');
         }
       }
@@ -979,7 +979,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     >
                       {[...props.projects, ...props.projects, ...props.projects].map((proj, idx) => (
                         <div key={`${proj.id}-${idx}`} className="w-80 h-48 shrink-0 rounded-2xl overflow-hidden relative group">
-                          <img src={proj.imageUrl} alt={proj.title} className="w-full h-full object-cover brightness-75 group-hover:brightness-100 transition-all duration-500 group-hover:scale-110" />
+                          <img src={proj.imageUrl || undefined} alt={proj.title} className="w-full h-full object-cover brightness-75 group-hover:brightness-100 transition-all duration-500 group-hover:scale-110" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-100 p-6 flex flex-col justify-end">
                             <h4 className="font-bold text-lg text-gray-900">{proj.title}</h4>
                             <p className="text-xs text-indigo-600">{proj.category}</p>
@@ -1027,7 +1027,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeTab === 'projects' && props.projects.map(p => (
                       <tr key={p.id} className="hover:bg-white/60 transition-colors">
                         <td className="px-6 py-4 flex items-center gap-4">
-                          <img src={p.imageUrl} alt={p.title} className="w-16 h-12 object-cover rounded-lg border border-gray-200/60" />
+                          <img src={p.imageUrl || undefined} alt={p.title} className="w-16 h-12 object-cover rounded-lg border border-gray-200/60" />
                           <div>
                             <p className="font-bold text-gray-900">{p.title}</p>
                             <p className="text-xs text-indigo-600">{p.category}</p>
@@ -1084,7 +1084,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                             <tr key={p.id} className="hover:bg-white/60 transition-colors">
                               <td className="px-6 py-4 flex items-center gap-4">
                                 {p.picture ? (
-                                  <img src={p.picture} alt={p.fullName} className="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-sm shrink-0" />
+                                  <img src={p.picture || undefined} alt={p.fullName} className="w-12 h-12 rounded-full object-cover border border-gray-200 shadow-sm shrink-0" />
                                 ) : (
                                   <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
                                     <Users className="w-6 h-6" />
@@ -1275,7 +1275,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                                 <div className="flex items-center gap-3.5">
                                   {app.photoUrl ? (
                                     <img
-                                      src={app.photoUrl}
+                                      src={app.photoUrl || undefined}
                                       alt={app.fullName}
                                       className="w-11 h-11 rounded-full object-cover border border-gray-200 shadow-sm shrink-0"
                                     />
@@ -1633,7 +1633,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       </div>
                       {settingsForm.logoUrl && (
                         <div className="mt-3 p-3 bg-white/80 rounded-xl border border-gray-200/60 flex items-center gap-3">
-                          <img src={settingsForm.logoUrl} alt="Logo preview" className="w-10 h-10 object-contain rounded" />
+                          <img src={settingsForm.logoUrl || undefined} alt="Logo preview" className="w-10 h-10 object-contain rounded" />
                           <span className="text-xs text-gray-500">Current Logo Preview</span>
                         </div>
                       )}
@@ -1656,7 +1656,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       </div>
                       {settingsForm.heroImageUrl && (
                         <div className="mt-3 p-3 bg-white/80 rounded-xl border border-gray-200/60 flex items-center gap-3">
-                          <img src={settingsForm.heroImageUrl} alt="Hero preview" className="w-12 h-12 object-cover rounded-lg" />
+                          <img src={settingsForm.heroImageUrl || undefined} alt="Hero preview" className="w-12 h-12 object-cover rounded-lg" />
                           <span className="text-xs text-gray-500">Current Hero Image Preview</span>
                         </div>
                       )}
@@ -1835,7 +1835,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                       <div className="border-t border-gray-200/60 pt-4 mt-2">
                         <div className="flex items-center justify-between mb-3">
                           <label className="block text-sm font-medium text-gray-900">Showcase Portfolio</label>
-                          <button type="button" onClick={() => setFormData({...formData, portfolioItems: [...(formData.portfolioItems || []), { id: Date.now().toString() + Math.random().toString(36).substring(7), title: '', imageUrl: '' }]})} className="text-xs font-semibold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
+                          <button type="button" onClick={() => setFormData({...formData, portfolioItems: [...(formData.portfolioItems || []), { id: generateUUID(), title: '', imageUrl: '' }]})} className="text-xs font-semibold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
                             + Add Portfolio Item
                           </button>
                         </div>
@@ -1936,7 +1936,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 p-5 bg-gray-50 rounded-2xl border border-gray-200/60">
                   {selectedApplication.photoUrl ? (
                     <img
-                      src={selectedApplication.photoUrl}
+                      src={selectedApplication.photoUrl || undefined}
                       alt={selectedApplication.fullName}
                       className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md shrink-0"
                     />

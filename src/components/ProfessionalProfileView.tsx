@@ -173,7 +173,7 @@ export function ProfessionalProfileView({
             <div className="relative shrink-0 group">
               <div className="w-44 h-44 sm:w-56 sm:h-56 rounded-2xl overflow-hidden border-2 border-indigo-600/30 bg-transparent shadow-2xl relative">
                 <img
-                  src={professional.picture}
+                  src={professional.picture || undefined}
                   alt={professional.fullName}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -358,7 +358,7 @@ export function ProfessionalProfileView({
                       onClick={() => setSelectedPortfolioItem(item)}
                     >
                       <img
-                        src={item.imageUrl}
+                        src={item.imageUrl || undefined}
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
@@ -663,7 +663,7 @@ export function ProfessionalProfileView({
 
             <div className="aspect-video bg-white/90 overflow-hidden relative">
               <img
-                src={selectedPortfolioItem.imageUrl}
+                src={selectedPortfolioItem.imageUrl || undefined}
                 alt={selectedPortfolioItem.title}
                 className="w-full h-full object-contain"
               />

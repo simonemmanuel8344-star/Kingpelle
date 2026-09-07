@@ -48,7 +48,7 @@ export function AdBanner() {
       <div className="relative group rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
         <div className="absolute inset-0 bg-gray-900">
           <img 
-            src={ad.imageUrl} 
+            src={ad.imageUrl || undefined} 
             alt={ad.title} 
             className="w-full h-full object-cover opacity-60 transition-opacity duration-1000"
           />

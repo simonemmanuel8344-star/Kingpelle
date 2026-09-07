@@ -98,7 +98,7 @@ export function ProfessionalsList({
                 <div className="w-full flex justify-center pt-6 sm:pt-8 px-4">
                   <div className="w-[300px] h-[300px] max-w-full aspect-square overflow-hidden bg-white/60 relative rounded-2xl border border-gray-200/60 shadow-md shrink-0 group-hover:scale-[1.02] transition-transform duration-300">
                     <img 
-                      src={prof.picture} 
+                      src={prof.picture || undefined} 
                       alt={prof.fullName} 
                       className="w-full h-full object-cover"
                       loading="lazy"

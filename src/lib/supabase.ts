@@ -1009,7 +1009,7 @@ export async function fetchChatMessages(chatId: string): Promise<ChatMessage[]> 
 // JOB APPLICATIONS PERSISTENCE & SYNC
 // ==========================================
 
-function generateUUID(): string {
+export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     try {
       return crypto.randomUUID();

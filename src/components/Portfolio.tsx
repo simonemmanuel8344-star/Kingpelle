@@ -20,7 +20,7 @@ export function Portfolio({ projects }: Props) {
           {projects.map((project) => (
             <div key={project.id} className="group relative rounded-2xl overflow-hidden aspect-[4/3] bg-white/60 border border-gray-200/60 shadow-lg">
               <img 
-                src={project.imageUrl} 
+                src={project.imageUrl || undefined} 
                 alt={project.title} 
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 loading="lazy"

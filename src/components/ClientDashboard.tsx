@@ -844,7 +844,7 @@ export function ClientDashboard({ onNavigateToJobs }: ClientDashboardProps) {
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="w-12 h-12 rounded-2xl bg-indigo-100 shrink-0 overflow-hidden border border-indigo-200 flex items-center justify-center">
                         {chat.professionalPicture ? (
-                          <img src={chat.professionalPicture} alt={chat.professionalName} className="w-full h-full object-cover" />
+                          <img src={chat.professionalPicture || undefined} alt={chat.professionalName} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-indigo-600 font-bold text-lg">
                             {chat.professionalName?.charAt(0) || 'P'}

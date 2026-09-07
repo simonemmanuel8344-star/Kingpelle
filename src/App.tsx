@@ -37,7 +37,7 @@ import { JobsPage } from './pages/JobsPage';
 import { ContactPage } from './pages/ContactPage';
 
 import { MessageCircle } from 'lucide-react';
-import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, saveGlobalSettings, fetchGlobalSettings } from './lib/supabase';
+import { supabase, fetchSupabaseData, insertSupabaseData, updateSupabaseData, deleteSupabaseData, getStoredUser, fetchRegisteredClients, deleteRegisteredClient, fetchRegisteredProfessionals, saveRegisteredProfessional, deleteRegisteredProfessional, saveJobApplication, fetchJobApplications, deleteJobApplication, updateJobApplicationStatus, saveGlobalSettings, fetchGlobalSettings, generateUUID } from './lib/supabase';
 import { useToast } from './contexts/ToastContext';
 
 const parseInitialRoute = (): AppView => {
@@ -411,7 +411,7 @@ export default function App() {
   const handleAddProject = async (proj: Project) => {
     try {
       const projPayload = {
-        id: proj.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'p_' + Date.now()),
+        id: proj.id || generateUUID(),
         title: proj.title,
         description: proj.description || '',
         image_url: proj.imageUrl || (proj as any).image_url || '',
@@ -453,7 +453,7 @@ export default function App() {
       const { jobType, logoUrl, requirements, ...rest } = job as any;
       const jobPayload = {
         ...rest,
-        id: job.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'j_' + Date.now()),
+        id: job.id || generateUUID(),
         job_type: jobType || job.jobType || 'Remote',
         logo_url: logoUrl || job.logoUrl || '',
         location: job.location || 'Remote',

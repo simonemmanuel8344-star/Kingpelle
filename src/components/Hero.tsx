@@ -57,7 +57,7 @@ export function Hero({ heroImageUrl, heroTitle, heroSubtitle, heroBadge, onOpenO
             className="absolute inset-0 w-full h-full"
           >
             <img
-              src={BACKGROUND_SLIDES[currentSlide].url}
+              src={BACKGROUND_SLIDES[currentSlide].url || undefined}
               alt={BACKGROUND_SLIDES[currentSlide].alt}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover select-none"
@@ -157,7 +157,7 @@ export function Hero({ heroImageUrl, heroTitle, heroSubtitle, heroBadge, onOpenO
           <div className="lg:w-1/2 flex justify-center lg:justify-end shrink-0 mt-8 lg:mt-0">
             <div className="w-[300px] h-[300px] bg-white/60 border border-gray-200/60 rounded-3xl shadow-2xl relative overflow-hidden flex items-center justify-center shrink-0">
               {heroImageUrl ? (
-                <img src={heroImageUrl} alt="Top Professional" className="w-full h-full object-cover bg-white" loading="lazy" />
+                <img src={heroImageUrl || undefined} alt="Top Professional" className="w-full h-full object-cover bg-white" loading="lazy" />
               ) : (
                 <ImageIcon className="w-16 h-16 text-gray-500/50" />
               )}

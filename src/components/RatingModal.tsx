@@ -128,7 +128,7 @@ export function RatingModal({ professional, existingRating, currentUser: propUse
         <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
           <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
             {professional.picture ? (
-              <img src={professional.picture} alt={professional.fullName} className="w-full h-full object-cover" />
+              <img src={professional.picture || undefined} alt={professional.fullName} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-indigo-600 font-bold text-xl">
                 {professional.fullName.charAt(0)}
