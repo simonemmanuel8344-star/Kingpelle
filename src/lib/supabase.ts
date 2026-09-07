@@ -344,16 +344,14 @@ export async function fetchRegisteredClients(): Promise<UserProfile[]> {
       for (const p of profData) {
         if (p?.email) {
           const emailKey = p.email.toLowerCase();
-          if (!map.has(emailKey)) {
-            map.set(emailKey, {
-              id: p.id,
-              email: emailKey,
-              fullName: p.full_name || p.fullName || 'Client',
-              phone: p.phone || '',
-              role: 'client',
-              createdAt: p.created_at || new Date().toISOString()
-            });
-          }
+          map.set(emailKey, {
+            id: p.id,
+            email: emailKey,
+            fullName: p.full_name || p.fullName || 'Client',
+            phone: p.phone || '',
+            role: 'client',
+            createdAt: p.created_at || new Date().toISOString()
+          });
         }
       }
     }
@@ -589,7 +587,7 @@ export async function fetchRegisteredProfessionals(): Promise<Professional[]> {
             ratingCount: p.rating_count ?? 1,
             createdAt: p.created_at || new Date().toISOString()
           };
-          map.set(key, existing ? { ...mapped, ...existing, portfolioItems: mapped.portfolioItems.length > 0 ? mapped.portfolioItems : (existing.portfolioItems || []) } : mapped);
+          map.set(key, mapped);
         }
       }
     }
