@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EscrowProject } from '../../types';
-import { fetchEscrowProjects, clientApproveEscrowBackend } from '../../lib/supabase';
+import { fetchEscrowProjects, clientApproveEscrowBackend, fundEscrowBackend } from '../../lib/supabase';
 import { ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -89,7 +89,6 @@ export function ClientEscrowDashboard({ userId }: { userId: string }) {
                   onClick={async () => {
                      setApprovingId(project.id);
                      try {
-                        const { fundEscrowBackend } = await import('../../lib/supabase');
                         // Mocking payment provider reference ID
                         await fundEscrowBackend(project.id, project.amount, 'TXN-' + Date.now());
                         setProjects(prev => prev.map(p => p.id === project.id ? { ...p, status: 'funded' } : p));
